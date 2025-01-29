@@ -97,8 +97,8 @@ export const getProductById = async (req, res) => {
 
 export const addProduct = async (req, res) => {
   try {
-    console.log(req.body);
-    console.log(req.files);
+    console.log("Add Product controller", req.body);
+    // console.log(req.files);
     // console.log(req);
     // If there are errors, return Bad request and the errors
     const errors = validationResult(req);
@@ -111,7 +111,10 @@ export const addProduct = async (req, res) => {
     }
 
     // At least one image is required
+    console.log(req);
     if (!req.files || req.files.length === 0) {
+      console.log("req.files", req.files);
+      console.log("req.file", req.file);
       return res.status(400).json({
         success: false,
         message: "At least one image is required",
@@ -136,7 +139,7 @@ export const addProduct = async (req, res) => {
     // Create a new product
     const product = new Product({
       title: req.body.title,
-      description: req.body.description,
+      // description: req.body.description,
       price: req.body.price,
       photoUrls: photoUrls,
       seller: req.user.id,

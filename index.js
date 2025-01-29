@@ -7,7 +7,6 @@ import authRoutes from './Routes/auth.routes.js';
 import productRoutes from './Routes/product.routes.js';
 import orderRoutes from './Routes/order.routes.js';
 import authenticate from './Middleware/authenticate.js';
-// import homeRoutes from './Routes/home.routes.js';
 
 dotenv.config();
 
@@ -19,14 +18,16 @@ connectToMongo();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', // React frontend URL
+  credentials: true, // Allow credentials (cookies) to be sent with requests
+}));
 app.use(cookieParser())
 
 // Define routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', authenticate, orderRoutes);
-// app.use('/', homeRoutes);
 
 // Listen on port
 app.listen(port, () => {

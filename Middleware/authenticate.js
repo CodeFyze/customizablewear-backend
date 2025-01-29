@@ -7,14 +7,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 const authenticate = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
+    // Get token from cookies and check if it exists
+    const token = req.cookies.accessToken;
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized - No token provided" });
     }
 
     // Verify token
     const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET);
-    console.log("Decoded token:", decoded);
 
     const user = await User.findById(decoded.user.id).select("tokenVersion");
     if (!user || user.tokenVersion !== decoded.user.tokenVersion) {

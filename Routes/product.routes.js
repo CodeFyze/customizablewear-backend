@@ -25,8 +25,8 @@ router.post(
   upload,
   [
     body("title", "Title is required and must be at least 3 characters long").trim().isString().isLength({ min: 3 }),
-    body("description", "Description must be a string").trim().isString().isLength({ min: 10 }),
-    body("price", "Price must be a positive number").trim().isNumeric().isFloat({ gt: 0 }),
+    // body("description", "Description must be a string").optional().trim().isString().isLength({ min: 10 }),
+    // body("price", "Price must be a positive number").trim().isNumeric().isFloat({ gt: 0 }),
   ],
   addProduct
 );

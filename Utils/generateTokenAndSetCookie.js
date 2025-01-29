@@ -7,8 +7,10 @@ export const generateTokenAndSetCookie = (data, res) => {
     res.cookie("accessToken", accessToken, {
         maxAge: 1 * 24 * 60 * 60 * 1000,
         httpOnly: true, //Prevent XSS attacks cross-site scripting attacks
-        sameSite: "strict",
-        secure: process.env.NODE_ENV !== "development",
+        path: "/",
+        sameSite: 'lax'
+        // sameSite: "strict",
+        // secure: process.env.NODE_ENV !== "development",
     });
 
     const refreshToken = jwt.sign(data, process.env.REFRESH_TOKEN_SECRET, {
@@ -17,8 +19,10 @@ export const generateTokenAndSetCookie = (data, res) => {
     res.cookie("refreshToken", refreshToken, {
         maxAge: 3 * 24 * 60 * 60 * 1000,
         httpOnly: true,
-        sameSite: "strict",
-        secure: process.env.NODE_ENV !== "development",
+        path: "/",
+        sameSite: 'lax'
+        // sameSite: "strict",
+        // secure: process.env.NODE_ENV !== "development",
     });
     
     return { accessToken, refreshToken };
