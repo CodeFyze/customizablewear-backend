@@ -12,15 +12,23 @@ const ProductSchema = new mongoose.Schema({
     type: String,
     // required: true,
     trim: true,
-    minlength: 10,
+    // minlength: 10,
   },
   price: {
     type: Number,
     required: true,
   },
-  photoUrls: {
-    type: [String],
-    validate: [arrayLimit, '{PATH} exceeds the limit of 5'],
+  frontImage: {
+    type: String,
+    required: true,
+  },
+  sideImage: {
+    type: String,
+    required: true,
+  },
+  backImage: {
+    type: String,
+    required: true,
   },
   seller: {
     type: mongoose.Schema.Types.ObjectId,

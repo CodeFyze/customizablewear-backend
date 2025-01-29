@@ -97,27 +97,19 @@ export const getProductById = async (req, res) => {
 
 export const addProduct = async (req, res) => {
   try {
-    console.log("Add Product controller", req.body);
-    // console.log(req.files);
-    // console.log(req);
-    // If there are errors, return Bad request and the errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: `Validation errors - ${errors.array()[0].msg}`,
       });
     }
-
-    // At least one image is required
-    console.log(req);
-    if (!req.files || req.files.length === 0) {
-      console.log("req.files", req.files);
-      console.log("req.file", req.file);
+    // console.log(req);
+    // Check if images are provided
+    if (!req.files || req.files.length < 3) {
       return res.status(400).json({
         success: false,
-        message: "At least one image is required",
+        message: "Front, side, and back images are required",
       });
     }
 
@@ -130,19 +122,33 @@ export const addProduct = async (req, res) => {
       });
     }
 
-    // Uploads all images to azure and stores the urls in photoUrls
-    req.files.forEach((file, index) => {
-      file.originalname = `${req.user.id}_${req.body.title}_${index}`;
-    });
-    const photoUrls = await Promise.all(req.files.map(file => uploadToAzure(file, file.originalname)));
-    
+    // Prepare image names for uploading
+    const frontImage = req.files.front[0];
+    const sideImage = req.files.side[0];
+    const backImage = req.files.back[0];
+
+    if (!frontImage || !sideImage || !backImage) {
+      return res.status(400).json({
+        success: false,
+        message: "Front, side, and back images are required",
+      });
+    }
+
+    // Upload images to Azure
+    const frontImageUrl = await uploadToAzure(frontImage, `${req.user.id}_${req.body.title}_front`);
+    const sideImageUrl = await uploadToAzure(sideImage, `${req.user.id}_${req.body.title}_side`);
+    const backImageUrl = await uploadToAzure(backImage, `${req.user.id}_${req.body.title}_back`);
+
     // Create a new product
     const product = new Product({
       title: req.body.title,
-      // description: req.body.description,
+      description: req.body.description,
       price: req.body.price,
-      photoUrls: photoUrls,
+      frontImage: frontImageUrl,
+      sideImage: sideImageUrl,
+      backImage: backImageUrl,
       seller: req.user.id,
+      customizable: req.body.customizable,
     });
 
     // Save the product
@@ -152,7 +158,7 @@ export const addProduct = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "An internal server error occured",
+      message: "An internal server error occurred",
     });
     console.error("Error in add product route", error);
   }
@@ -160,24 +166,14 @@ export const addProduct = async (req, res) => {
 
 export const updateProduct = async (req, res) => {
   try {
-    // If there are errors, return Bad request and the errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: `Validation errors - ${errors.array()[0].msg}`,
       });
     }
 
-    // At least one image is required
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one image is required",
-      });
-    }
-
     // Check if product exists
     const existingProduct = await Product.findById(req.params.id);
     if (!existingProduct) {
@@ -195,38 +191,50 @@ export const updateProduct = async (req, res) => {
       });
     }
 
-    // Delete the old images from azure
-    await Promise.all(existingProduct.photoUrls.map(url => deleteFromAzure(url)));
+    // Upload new images if they are provided
+    let frontImageUrl, sideImageUrl, backImageUrl;
+    if (req.files) {
+      if (req.files.frontImage) {
+        frontImageUrl = await uploadToAzure(req.files.front, `${req.user.id}_${req.body.title}_front`);
+        await deleteFromAzure(existingProduct.frontImage);  // Delete old image
+      }
+      if (req.files.sideImage) {
+        sideImageUrl = await uploadToAzure(req.files.side, `${req.user.id}_${req.body.title}_side`);
+        await deleteFromAzure(existingProduct.sideImage);  // Delete old image
+      }
+      if (req.files.backImage) {
+        backImageUrl = await uploadToAzure(req.files.back, `${req.user.id}_${req.body.title}_back`);
+        await deleteFromAzure(existingProduct.backImage);  // Delete old image
+      }
+    }
 
-    // Uploads all images to azure and stores the urls in photoUrls
-    req.files.forEach((file, index) => {
-      file.originalname = `${req.user.id}_${req.body.title}_${index}`;
-    })
-    const photoUrls = await Promise.all(req.files.map(file => uploadToAzure(file, file.originalname)));
-
-    // Update the product
-    const bodyPayload = {
+    // Prepare updated fields
+    const updatedProduct = {
       title: req.body.title,
       description: req.body.description,
       price: req.body.price,
-      photoUrls
+      frontImage: frontImageUrl || existingProduct.frontImage,
+      sideImage: sideImageUrl || existingProduct.sideImage,
+      backImage: backImageUrl || existingProduct.backImage,
+      customizable: req.body.customizable,
     };
-    const product = await Product.findByIdAndUpdate(req.params.id, bodyPayload, {
-      new: true,
-    });
+
+    // Update the product
+    const product = await Product.findByIdAndUpdate(req.params.id, updatedProduct, { new: true });
     res.status(200).json({ success: true, product });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "An internal server error occured",
+      message: "An internal server error occurred",
     });
     console.error("Error in update product route", error);
   }
-}
+};
 
 export const deleteProduct = async (req, res) => {
   try {
     // Check if product exists
+    console.log("Hi ", req.params.id);
     const existingProduct = await Product.findById(req.params.id);
     if (!existingProduct) {
       return res.status(400).json({
@@ -243,8 +251,15 @@ export const deleteProduct = async (req, res) => {
       });
     }
 
-    // Delete the images from azure
-    await Promise.all(existingProduct.photoUrls.map(url => deleteFromAzure(url)));
+    console.log("Front Image: ", existingProduct.frontImage);
+    console.log("Side Image: ", existingProduct.sideImage);
+    console.log("Back Image: ", existingProduct.backImage);
+    // Delete the images from Azure
+    await Promise.all([
+      deleteFromAzure(existingProduct.frontImage),
+      deleteFromAzure(existingProduct.sideImage),
+      deleteFromAzure(existingProduct.backImage)
+    ]);
 
     // Delete the product
     await Product.findByIdAndDelete(req.params.id);
@@ -252,8 +267,8 @@ export const deleteProduct = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "An internal server error occured",
+      message: "An internal server error occurred",
     });
     console.error("Error in delete product route", error);
   }
-}
+};

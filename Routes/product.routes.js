@@ -8,7 +8,11 @@ import { addToCart } from "../Controllers/products.controller.js";
 
 // Set up multer for in-memory storage
 const storage = multer.memoryStorage();
-const upload = multer({ storage }).array("photos", 5); // Limit to 5 images per product
+const upload = multer({ storage }).fields([
+  { name: 'front', maxCount: 1 },
+  { name: 'side', maxCount: 1 },
+  { name: 'back', maxCount: 1 }
+]);
 
 const router = express.Router();
 
