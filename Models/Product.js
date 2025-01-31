@@ -30,6 +30,13 @@ const ProductSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  images: {
+    type: [String], // Array of image URLs
+    validate: [arrayLimit, '{PATH} exceeds the limit of 10'],
+  },
+  colors: {
+    type: [String], // Array of color options
+  },
   seller: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

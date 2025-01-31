@@ -115,10 +115,10 @@ export const addProduct = async (req, res) => {
     }
     // console.log(req);
     // Check if images are provided
-    if (!req.files || req.files.length < 3) {
+    if (!(req.files.frontImage && req.files.sideImage && req.files.backImage && req.files.images)) {
       return res.status(400).json({
         success: false,
-        message: "Front, side, and back images are required",
+        message: "Front, side, back, and other images are required",
       });
     }
 
@@ -135,11 +135,18 @@ export const addProduct = async (req, res) => {
     const frontImage = req.files.front[0];
     const sideImage = req.files.side[0];
     const backImage = req.files.back[0];
+    const timestamp = Date.now();
 
-    if (!frontImage || !sideImage || !backImage) {
+    const additionalImages = [];
+    for (const [index, image] of req.files.images.entries()) {
+      const imageUrl = await uploadToAzure(image, `${req.user.id}_${req.body.title}_image_${timestamp}_${index}`);
+      additionalImages.push(imageUrl);
+    }
+
+    if(req.files.images.length !== additionalImages.length) {
       return res.status(400).json({
         success: false,
-        message: "Front, side, and back images are required",
+        message: "Failed to upload images",
       });
     }
 
@@ -165,6 +172,8 @@ export const addProduct = async (req, res) => {
       frontImage: frontImageUrl,
       sideImage: sideImageUrl,
       backImage: backImageUrl,
+      images: additionalImages,
+      colors: req.body.colors,
       seller: req.user.id,
       customizable: req.body.customizable,
     });
@@ -209,24 +218,42 @@ export const updateProduct = async (req, res) => {
       });
     }
 
-    if (!(req.files.front && req.files.side && req.files.back)) {
+    if (!(req.files.front && req.files.side && req.files.back && req.files.images)) {
       return res.status(400).json({
         success: false,
-        message: "Front, side, and back images are required",
+        message: "Front, side, back, and other images are required",
       });
     }
 
     // Upload new images if they are provided
     let frontImageUrl, sideImageUrl, backImageUrl;
+    const additionalImages = [];
+    const timestamp = Date.now();
     await deleteFromAzure(existingProduct.frontImage); // Delete old image
-    frontImageUrl = await uploadToAzure(req.files.front[0], `${req.user.id}_${req.body.title}_front`);
+    frontImageUrl = await uploadToAzure(req.files.front[0], `${req.user.id}_${req.body.title}_front_${timestamp}`);
     
     await deleteFromAzure(existingProduct.sideImage); // Delete old image
-    sideImageUrl = await uploadToAzure(req.files.side[0], `${req.user.id}_${req.body.title}_side`);
+    sideImageUrl = await uploadToAzure(req.files.side[0], `${req.user.id}_${req.body.title}_side_${timestamp}`);
 
     await deleteFromAzure(existingProduct.backImage); // Delete old image
-    backImageUrl = await uploadToAzure(req.files.back[0], `${req.user.id}_${req.body.title}_back`);
+    backImageUrl = await uploadToAzure(req.files.back[0], `${req.user.id}_${req.body.title}_back_${timestamp}`);
 
+    existingProduct.images.forEach(async (image) => {
+      await deleteFromAzure(image); // Delete old image
+    });
+
+    for (const [index, image] of req.files.images.entries()) {
+      const imageUrl = await uploadToAzure(image, `${req.user.id}_${req.body.title}_image_${timestamp}_${index}`);
+      additionalImages.push(imageUrl);
+    }
+
+    if(req.files.images.length !== additionalImages.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Failed to upload images",
+      });
+    }
+    
     if(!frontImageUrl || !sideImageUrl || !backImageUrl) {
       return res.status(400).json({
         success: false,
@@ -242,6 +269,8 @@ export const updateProduct = async (req, res) => {
       frontImage: frontImageUrl || existingProduct.frontImage,
       sideImage: sideImageUrl || existingProduct.sideImage,
       backImage: backImageUrl || existingProduct.backImage,
+      images: additionalImages || existingProduct.images,
+      colors: req.body.colors,
       customizable: req.body.customizable,
     };
     // Update the product

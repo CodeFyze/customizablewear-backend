@@ -566,3 +566,25 @@ export const updateUser = async (req, res) => {
     console.error("Error in updateUser route", error);
   }
 };
+
+export const isAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password -otp -otpExpires -tokenVersion -verified -refreshToken");
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    if (user.role === "seller") {
+      res.status(200).json({ success: true, message: "User is an admin", isAdmin: true });
+    } else {
+      res.status(401).json({ success: false, message: "User is not an admin", isAdmin: false });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "An internal server error occurred",
+    });
+    console.error("Error in isAdmin route", error);
+  }
+};

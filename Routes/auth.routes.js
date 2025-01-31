@@ -11,6 +11,7 @@ import {
   updateUser,
   verifySignup,
   refreshToken,
+  isAdmin,
 } from "../Controllers/auth.controller.js";
 import authenticate from "../Middleware/authenticate.js";
 
@@ -135,5 +136,8 @@ router.post(
   ],
   updateUser
 );
+
+// Is Logged In using: GET "/api/auth/isAdmin". No Auth required
+router.get("/isAdmin", authenticate, isAdmin);
 
 export default router;

@@ -11,7 +11,8 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage }).fields([
   { name: 'front', maxCount: 1 },
   { name: 'side', maxCount: 1 },
-  { name: 'back', maxCount: 1 }
+  { name: 'back', maxCount: 1 },
+  { name: 'images', maxCount: 10 }
 ]);
 
 const router = express.Router();
@@ -34,6 +35,9 @@ router.post(
     body("title", "Title is required and must be at least 3 characters long").trim().isString().isLength({ min: 3 }),
     // body("description", "Description must be a string").optional().trim().isString().isLength({ min: 10 }),
     // body("price", "Price must be a positive number").trim().isNumeric().isFloat({ gt: 0 }),
+    body("colors", "Colors must be an array of strings").optional().isArray().custom((value) => {
+      return value.every(color => typeof color === 'string');
+    }),
   ],
   addProduct
 );
@@ -47,6 +51,9 @@ router.put(
     body("title", "Title is required and must be at least 3 characters long").optional().trim().isString().isLength({ min: 3 }),
     body("price", "Price must be a positive number").optional().trim().isNumeric().isFloat({ gt: 0 }),
     // body("description", "Description must be a string").optional().trim().isString(),
+    body("colors", "Colors must be an array of strings").optional().isArray().custom((value) => {
+      return value.every(color => typeof color === 'string');
+    }),
   ],
   updateProduct
 );
