@@ -11,7 +11,7 @@ import {
 const router = express.Router();
 
 // Get all orders: GET "/api/orders". Requires Auth
-router.get("/orders", getAllOrders);
+router.get("/", getAllOrders);
 
 // Get order by ID: GET "/api/orders/:id". Requires Auth
 router.get(
@@ -22,7 +22,7 @@ router.get(
 
 // Create a new order: POST "/api/orders/create". Requires Auth
 router.post(
-  "/orders/create",
+  "/create",
   [
     body("products", "Products are required").isArray({ min: 1 }),
     body("products.*.productId", "Product ID is invalid").isMongoId(),

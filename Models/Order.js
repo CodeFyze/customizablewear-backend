@@ -7,22 +7,6 @@ const OrderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    // products: [
-    //   {
-    //     productId: {
-    //       type: mongoose.Schema.Types.ObjectId,
-    //       ref: "Product",
-    //       required: true,
-    //     },
-    //     quantity: { type: Number, required: true },
-    //     customizations: {
-    //       type: Map,
-    //       of: String,
-    //       default: {},
-    //     }, // Example: { "name": "Ali", "logo": "logo.png", "placement": "back" }
-    //   },
-    // ],
-    
     products: [
       {
         productId: {
