@@ -26,6 +26,7 @@ router.get("/:id", getProductById);
 // Get product by name: GET "/api/products/name/:name". No Auth required
 router.get("/name/:name", getProductByName);
 
+
 // Add a new product: POST "/api/products/add". Requires Auth
 router.post(
   "/add",

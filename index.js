@@ -12,26 +12,26 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
- 
+
 // Connect to database
 connectToMongo();
 
-// Middleware
-app.use(express.json());
+// ✅ Fix CORS Middleware
 app.use(cors({
-  origin: 'http://localhost:5173', // React frontend URL
-  credentials: true, // Allow credentials (cookies) to be sent with requests
+  origin: 'http://localhost:5173', // ✅ Allow only your frontend
+  credentials: true, // ✅ Allow authentication (cookies)
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // ✅ Allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // ✅ Allowed headers
 }));
-app.use(cookieParser())
+
+app.use(express.json());
+app.use(cookieParser());
 
 // Define routes
 app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
+app.use('/api/products', productRoutes); // ✅ Ensure this matches frontend request
 app.use('/api/orders', authenticate, orderRoutes);
 
-// Listen on port
 app.listen(port, () => {
-  console.info(`Ecommerce app listening at http://localhost:${port}`)
-  // console.log("ACCESS_TOKEN_SECRET", process.env.ACCESS_TOKEN_SECRET);
-
-})
+  console.info(`Ecommerce app listening at http://localhost:${port}`);
+});

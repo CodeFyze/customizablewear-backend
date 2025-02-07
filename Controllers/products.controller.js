@@ -4,18 +4,28 @@ import uploadToAzure from "../Utils/uploadToAzureStorage.js";
 import deleteFromAzure from "../Utils/deleteFromAzureStorage.js";
 import Cart from "../Models/Cart.js";
 
+
+
 export const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find();
-    res.status(200).json({ success: true, products });
+    const formattedProducts = products.map(product => ({
+      ...product._doc, 
+      image: product.frontImage, // ✅ Set image field explicitly
+    }));
+
+    res.status(200).json({ success: true, products: formattedProducts });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "An internal server error occured",
+      message: "An internal server error occurred",
     });
     console.error("Error in get all products route", error);
   }
 };
+
+
+
 
 export const addToCart = async (req, res) => {
   try {
@@ -104,92 +114,87 @@ export const getProductByName = async (req, res) => {
   }
 };
 
+
 export const addProduct = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    console.log("Received request to add product", req.body);
+    console.log("Files received:", req.files);
+
+    // Ensure images are provided
+    if (!req.files || !req.files["front"] || !req.files["side"] || !req.files["back"]) {
       return res.status(400).json({
         success: false,
-        message: `Validation errors - ${errors.array()[0].msg}`,
-      });
-    }
-    // console.log(req);
-    // Check if images are provided
-    if (!(req.files.frontImage && req.files.sideImage && req.files.backImage && req.files.images)) {
-      return res.status(400).json({
-        success: false,
-        message: "Front, side, back, and other images are required",
+        message: "Front, side, and back images are required",
       });
     }
 
-    // Check if product already exists
-    const existingProduct = await Product.findOne({ title: req.body.title });
-    if (existingProduct) {
+    // Convert colors string to array (because it's sent as JSON from FormData)
+    let colors = [];
+    if (req.body.colors) {
+      try {
+        colors = JSON.parse(req.body.colors);
+      } catch (error) {
+        return res.status(400).json({ success: false, message: "Invalid colors format" });
+      }
+    }
+
+    // Log parsed fields
+    console.log("Parsed data:", {
+      title: req.body.title,
+      price: req.body.price,
+      stock: req.body.stock,
+      colors: colors,
+    });
+
+    // Ensure required fields exist
+    if (!req.body.title || !req.body.price) {
       return res.status(400).json({
         success: false,
-        message: "Product already exists",
+        message: "Title and price are required",
       });
     }
 
-    // Prepare image names for uploading
-    const frontImage = req.files.front[0];
-    const sideImage = req.files.side[0];
-    const backImage = req.files.back[0];
-    const timestamp = Date.now();
+    // Upload images to Azure or any storage service
+    const frontImageUrl = await uploadToAzure(req.files["front"][0], `${req.body.title}_front`);
+    const sideImageUrl = await uploadToAzure(req.files["side"][0], `${req.body.title}_side`);
+    const backImageUrl = await uploadToAzure(req.files["back"][0], `${req.body.title}_back`);
 
+    // Handle additional images
     const additionalImages = [];
-    for (const [index, image] of req.files.images.entries()) {
-      const imageUrl = await uploadToAzure(image, `${req.user.id}_${req.body.title}_image_${timestamp}_${index}`);
-      additionalImages.push(imageUrl);
+    if (req.files["images"]) {
+      for (const image of req.files["images"]) {
+        const imageUrl = await uploadToAzure(image, `${req.body.title}_extra`);
+        additionalImages.push(imageUrl);
+      }
     }
 
-    if(req.files.images.length !== additionalImages.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Failed to upload images",
-      });
-    }
-
-    // Upload images to Azure
-    const frontImageUrl = await uploadToAzure(
-      frontImage,
-      `${req.user.id}_${req.body.title}_front`
-    );
-    const sideImageUrl = await uploadToAzure(
-      sideImage,
-      `${req.user.id}_${req.body.title}_side`
-    );
-    const backImageUrl = await uploadToAzure(
-      backImage,
-      `${req.user.id}_${req.body.title}_back`
-    );
-
-    // Create a new product
+    // Save product in MongoDB
     const product = new Product({
       title: req.body.title,
-      description: req.body.description,
       price: req.body.price,
+      stock: req.body.stock || "In Stock",
       frontImage: frontImageUrl,
       sideImage: sideImageUrl,
       backImage: backImageUrl,
       images: additionalImages,
-      colors: req.body.colors,
+      colors: colors,
       seller: req.user.id,
-      customizable: req.body.customizable,
+      customizable: req.body.customizable || false,
     });
 
-    // Save the product
     await product.save();
-
     res.status(201).json({ success: true, product });
   } catch (error) {
+    console.error("Error in add product route:", error);
     res.status(500).json({
       success: false,
       message: "An internal server error occurred",
     });
-    console.error("Error in add product route", error);
   }
 };
+
+
+
 
 export const updateProduct = async (req, res) => {
   try {
