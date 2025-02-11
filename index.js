@@ -34,4 +34,6 @@ app.use('/api/orders', authenticate, orderRoutes);
 
 app.listen(port, () => {
   console.info(`Ecommerce app listening at http://localhost:${port}`);
+  console.log("Cloudinary Configurations", process.env.CLOUDINARY_CLOUD_NAME, process.env.CLOUDINARY_API_KEY, process.env.CLOUDINARY_API_SECRET);
+
 });
