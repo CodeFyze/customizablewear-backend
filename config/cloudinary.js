@@ -8,8 +8,7 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-
-export const uploadToCloudinary = async (file, publicId) => {
+const uploadToCloudinary = async (file, publicId) => {
   try {
     console.log("Received file for upload:", file);
     console.log("File publicId:", publicId);
@@ -50,3 +49,5 @@ export const uploadToCloudinary = async (file, publicId) => {
     throw new Error("Error uploading to Cloudinary");
   }
 };
+
+export default cloudinary;

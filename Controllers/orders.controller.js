@@ -1,122 +1,258 @@
 import Order from "../Models/Order.js";  
 import Product from "../Models/Product.js";  
+import mongoose from "mongoose";
+import User from "../Models/User.js";
 
-// Get all orders for a user
+
 export const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ userId: req.user.id });
+    // Log the incoming request to check the user ID and role
+    console.log("Fetching orders for user ID:", req.user.id);
+    console.log("User role:", req.user.role);
 
-    // Check if no orders were found for the user
+    // Verify user object and ID
+    if (!req.user || !req.user.id) {
+      console.log("User ID not found in the request.");
+      return res.status(400).json({
+        success: false,
+        message: "User ID is missing in the request",
+      });
+    }
+
+    // If the user is a seller, fetch all orders
+    let orders;
+    if (req.user.role === "seller") {
+      orders = await Order.find(); // Fetch all orders for the seller
+      console.log("Fetched all orders for seller:", orders);
+    } else {
+      // If the user is not a seller, fetch orders based on their userId
+      orders = await Order.find({ userId: req.user.id });
+      console.log("Fetched orders for user ID:", req.user.id);
+    }
+
+    // Check if no orders were found
     if (orders.length === 0) {
+      console.log("No orders found for user ID:", req.user.id); // Log when no orders are found
       return res.status(400).json({
         success: false,
         message: "No orders found",
       });
     }
 
+    // Log the successful response
+    console.log("Successfully fetched orders:", orders);
     res.status(200).json({ success: true, orders });
   } catch (error) {
+    // Log the error to help with debugging
+    console.error("Error in getAllOrders route:", error);
+
     res.status(500).json({
       success: false,
       message: "An internal server error occurred",
     });
-    console.error("Error in getAllOrders route", error);
   }
 };
 
-// Get a single order by ID
+
+export const getOrdersByUserId = async (req, res) => {
+  try {
+    let userId;
+
+    // ✅ If a seller/admin is making the request, use the `userId` from URL params
+    if (req.user.role === "seller" || req.user.role === "admin") {
+      userId = req.params.id;  // Fetch orders for any user
+    } else {
+      // ✅ If a normal user, fetch only their own orders
+      userId = req.user.id;
+    }
+
+    // ✅ Validate `userId` (must be a valid MongoDB ObjectId)
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      console.log("❌ Invalid or missing User ID:", userId);
+      return res.status(400).json({ success: false, message: "Invalid or missing User ID" });
+    }
+
+    console.log("✅ Fetching orders for userId:", userId);
+
+    // ✅ Convert `userId` to ObjectId for querying
+    const orders = await Order.find({ userId: new mongoose.Types.ObjectId(userId) });
+
+    if (!orders || orders.length === 0) {
+      console.log("❌ No orders found for user ID:", userId);
+      return res.status(404).json({ success: false, message: "No orders found for this user" });
+    }
+
+    console.log("✅ Orders found:", orders.length);
+    res.status(200).json({ success: true, orders });
+  } catch (error) {
+    console.error("❌ Error fetching orders by user ID:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+
+
+
 export const getOrderById = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized - No user found" });
+    }
+
+    // Find the order by ID
     const order = await Order.findById(req.params.id);
 
     if (!order) {
-      return res.status(400).json({
-        success: false,
-        message: "Order not found",
-      });
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // Check if the user is the owner of the order
-    if (order.userId.toString() !== req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: "You are not the owner of this order",
-      });
+    // Allow access if the user owns the order OR if they are a seller/admin
+    if (order.userId.toString() !== req.user.id && req.user.role !== "seller" && req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "You are not authorized to view this order" });
     }
 
     res.status(200).json({ success: true, order });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "An internal server error occurred",
-    });
-    console.error("Error in getOrderById route", error);
+    console.error("Error fetching order by ID:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-// Create a new order
+
+  
+
+// export const createOrder = async (req, res) => {
+//   try {
+//     const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
+//     const userId = req.user?.id;
+
+//     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+//       return res.status(400).json({ success: false, message: "Invalid or missing User ID" });
+//     }
+
+//     if (!shippingAddress || !shippingAddress.firstName || !shippingAddress.address || !products.length) {
+//       return res.status(400).json({ success: false, message: "Missing required fields" });
+//     }
+
+//     const productIds = products.map((item) => item.productId);
+//     const existingProducts = await Product.find({ _id: { $in: productIds } });
+
+//     if (existingProducts.length !== productIds.length) {
+//       return res.status(400).json({ success: false, message: "Some products no longer exist" });
+//     }
+
+//     const orderProducts = products.map((item) => ({
+//       productId: item.productId,
+//       title: item.title,
+//       frontImage: item.frontImage,
+//       sideImage: item.sideImage || "",
+//       price: item.logo ? item.price + 5 : item.price,
+//       size: item.size,
+//       color: item.color,
+//       logo: item.logo || "",
+//       quantity: item.quantity,
+//       method: item.method,
+//       position: item.position,
+//     }));
+
+//     // ✅ Convert `userId` to ObjectId before storing it
+//     const order = new Order({
+//       userId: new mongoose.Types.ObjectId(userId),  // ✅ Store `userId` as ObjectId
+//       shippingAddress,
+//       products: orderProducts,
+//       totalAmount,
+//       promoCode,
+//       discount,
+//       finalAmount,
+//       paymentMode,
+//       paymentStatus: paymentMode === "Online" ? "Paid" : "Pending",
+//     });
+
+//     await order.save();
+
+//     // ✅ Mark User as a Customer (if they are not already)
+//     const user = await User.findById(userId);  // ✅ No more ReferenceError
+//     if (user && !user.isCustomer) {
+//       user.isCustomer = true;
+//       await user.save();
+//       console.log(`✅ User ${userId} is now a customer.`);
+//     }
+
+//     res.status(201).json({ success: true, message: "Order created successfully", order });
+//   } catch (error) {
+//     console.error("❌ Error creating order:", error);
+//     res.status(500).json({ success: false, message: "Internal Server Error" });
+//   }
+// };
+
+
 export const createOrder = async (req, res) => {
   try {
-    const { products, totalAmount } = req.body;
+    const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
+    const userId = req.user?.id;
 
-    // Get all product IDs from the request body
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid or missing User ID" });
+    }
+
+    if (!shippingAddress || !shippingAddress.firstName || !shippingAddress.address || !products.length) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
     const productIds = products.map((item) => item.productId);
-
-    // Fetch the products from the database
     const existingProducts = await Product.find({ _id: { $in: productIds } });
 
-    // Check if any products are missing
     if (existingProducts.length !== productIds.length) {
-      const missingProductIds = productIds.filter(
-        (id) => !existingProducts.some((product) => product._id.toString() === id)
-      );
-      return res.status(400).json({
-        message: `One or more products do not exist. Missing: ${missingProductIds.join(", ")}`,
-      });
+      return res.status(400).json({ success: false, message: "Some products no longer exist" });
     }
 
-    // Calculate the total price for the order
-    let calculatedTotal = 0;
-    for (const item of products) {
-      const foundProduct = existingProducts.find(
-        (product) => product._id.toString() === item.productId
-      );
-      if (foundProduct) {
-        calculatedTotal += foundProduct.price * item.quantity;
-      }
-    }
+    const orderProducts = products.map((item) => ({
+      productId: item.productId,
+      title: item.title,
+      frontImage: item.frontImage,
+      sideImage: item.sideImage || "",
+      price: item.logo ? item.price + 5 : item.price,
+      size: item.size,
+      color: item.color,
+      logo: item.logo || "",
+      quantity: item.quantity,
+      method: item.method,
+      position: item.position,
+      textLine: item.textLine || "",  // ✅ Storing textLine
+      font: item.font || "",  // ✅ Storing font
+      notes: item.notes || ""  // ✅ Storing notes
+    }));
 
-    // If the provided totalAmount doesn't match the calculated total, return an error
-    if (Math.abs(calculatedTotal - totalAmount) > 0.01) {
-      return res.status(400).json({
-        message: `Total amount mismatch. Expected: ${calculatedTotal.toFixed(2)}, Provided: ${totalAmount.toFixed(2)}`,
-      });
-    }
-
-    // Create a new order document
+    // ✅ Convert `userId` to ObjectId before storing it
     const order = new Order({
-      userId: req.user.id, // Assumes `req.user.id` is set by authentication middleware
-      products: products.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        customizations: item.customizations || {},
-      })),
-      totalAmount: calculatedTotal,
+      userId: new mongoose.Types.ObjectId(userId),  // ✅ Store `userId` as ObjectId
+      shippingAddress,
+      products: orderProducts,
+      totalAmount,
+      promoCode,
+      discount,
+      finalAmount,
+      paymentMode,
+      paymentStatus: paymentMode === "Online" ? "Paid" : "Pending",
     });
 
-    // Save the order to the database
-    const savedOrder = await order.save();
-    res.status(201).json({
-      message: "Order created successfully.",
-      order: savedOrder,
-    });
+    await order.save();
+
+    // ✅ Mark User as a Customer (if they are not already)
+    const user = await User.findById(userId);  // ✅ No more ReferenceError
+    if (user && !user.isCustomer) {
+      user.isCustomer = true;
+      await user.save();
+      console.log(`✅ User ${userId} is now a customer.`);
+    }
+
+    res.status(201).json({ success: true, message: "Order created successfully", order });
   } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({ message: "Internal server error." });
+    console.error("❌ Error creating order:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
-// Update an existing order
 export const updateOrder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -161,5 +297,44 @@ export const deleteOrder = async (req, res) => {
     res.status(200).json({ message: "Order deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete order" });
+  }
+};
+
+
+export const getCustomers = async (req, res) => {
+  try {
+    // Find unique user IDs from orders
+    const customerIds = await Order.distinct("userId");
+
+    // Fetch user details for these customers
+    const customers = await User.find({ _id: { $in: customerIds } }).select(
+      "firstName lastName email phone createdAt"
+    );
+
+    // Fetch order count for each customer
+    const customersWithOrders = await Promise.all(
+      customers.map(async (customer) => {
+        const orderCount = await Order.countDocuments({ userId: customer._id });
+
+        return {
+          id: customer._id, // Customer ID
+          name: `${customer.firstName} ${customer.lastName}`, // Full Name
+          email: customer.email,
+          phone: customer.phone,
+          orders: orderCount, // Number of orders
+          status: orderCount > 0 ? "Active" : "Inactive", // Status based on orders
+          joinedDate: customer.createdAt, // Date of Registration
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      count: customersWithOrders.length,
+      customers: customersWithOrders,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching customers:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };

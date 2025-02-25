@@ -3,7 +3,7 @@ import { body } from "express-validator";
 import multer from 'multer';
 import { getAllProducts, getProductById, getProductByName, addProduct , updateProduct , deleteProduct  } from "../Controllers/products.controller.js";
 import authenticate from "../Middleware/authenticate.js"; 
-import { addToCart } from "../Controllers/products.controller.js";
+
 
 
 // Set up multer for in-memory storage
@@ -62,15 +62,15 @@ router.put(
 // Delete a product: DELETE "/api/products/delete/:id". Requires Auth
 router.delete("/delete/:id",authenticate, deleteProduct);
 
-router.post(
-  "/cart",
-  authenticate,
-  [
-    body("productId", "Product ID is required").isMongoId(),
-    body("quantity", "Quantity must be a positive integer").isInt({ gt: 0 }),
-  ],
-  addToCart
-);
+// router.post(
+//   "/cart",
+//   authenticate,
+//   [
+//     body("productId", "Product ID is required").isMongoId(),
+//     body("quantity", "Quantity must be a positive integer").isInt({ gt: 0 }),
+//   ],
+//   addToCart
+// );
 
 
 export default router;

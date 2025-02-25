@@ -9,9 +9,22 @@ const cartSchema = new mongoose.Schema({
         ref: "Product",
         required: true,
       },
-      quantity: { type: Number, required: true, min: 1 },
+      title: { type: String, required: true },
+      frontImage: { type: String, required: true },
+      sideImage: { type: String },
+      price: { type: Number, required: true },
+      size: { type: String, required: true },
+      color: { type: String, required: true },
+      logo: { type: String }, 
+      quantity: { type: Number, default: 1, min: 1 },
+      method: { type: String, default: "Not selected" },
+      position: { type: String, default: "Not selected" }, 
+      textLine: { type: String, default: "" },  
+      font: { type: String, default: "" },  
+      notes: { type: String, default: "" }, 
     },
   ],
+  createdAt: { type: Date, default: Date.now },
 });
 
 const Cart = mongoose.model("Cart", cartSchema);

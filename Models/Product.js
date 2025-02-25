@@ -52,4 +52,4 @@ function arrayLimit(val) {
   return val.length <= 5;
 }
 
-export default mongoose.model('product', ProductSchema);
+export default mongoose.model('Product', ProductSchema);

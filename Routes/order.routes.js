@@ -1,26 +1,30 @@
-// order.routes.js
 import express from "express";
 import { body, param } from "express-validator";
 import {
   getAllOrders,
   getOrderById,
   createOrder,
-  updateOrder, // Import updateOrder
+  getOrdersByUserId,
+  updateOrder, 
+  getCustomers,
 } from "../Controllers/orders.controller.js";
 
 const router = express.Router();
 
-// Get all orders: GET "/api/orders". Requires Auth
 router.get("/", getAllOrders);
 
-// Get order by ID: GET "/api/orders/:id". Requires Auth
 router.get(
   "/orders/:id",
   [param("id", "Invalid order ID").isMongoId()],
   getOrderById
 );
 
-// Create a new order: POST "/api/orders/create". Requires Auth
+router.get(
+  "/order-user/:id",
+  [param("id", "Invalid order ID").isMongoId()],
+ getOrdersByUserId
+);
+
 router.post(
   "/create",
   [
@@ -39,7 +43,6 @@ router.post(
   createOrder
 );
 
-// Update an order: PUT "/api/orders/update/:id". Requires Auth
 router.put(
   "/orders/update/:id",
   [
@@ -61,5 +64,7 @@ router.put(
   ],
   updateOrder
 );
+
+router.get("/customers", getCustomers);
 
 export default router;

@@ -12,6 +12,7 @@ import {
   verifySignup,
   refreshToken,
   isAdmin,
+  getUserId
 } from "../Controllers/auth.controller.js";
 import authenticate from "../Middleware/authenticate.js";
 
@@ -42,6 +43,8 @@ router.post(
   ],
   signup
 );
+
+router.get("/user-id", getUserId);
 
 // Verify signup using: POST "/api/auth/signup/verify". No Auth required
 // router.post(
@@ -76,7 +79,7 @@ router.post(
 );
 
 // Logout using: GET "/api/auth/logout". No Auth required
-router.get("/logout", logout);
+router.post("/logout", logout);
 
 // Refresh token using: POST "/api/auth/refresh-token". No Auth required
 router.post( "/refresh-token", refreshToken );
