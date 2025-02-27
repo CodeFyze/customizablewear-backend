@@ -2,6 +2,7 @@ import Order from "../Models/Order.js";
 import Product from "../Models/Product.js";  
 import mongoose from "mongoose";
 import User from "../Models/User.js";
+import sendEmail from "../Utils/sendEmail.js";
 
 
 export const getAllOrders = async (req, res) => {
@@ -218,14 +219,14 @@ export const createOrder = async (req, res) => {
       quantity: item.quantity,
       method: item.method,
       position: item.position,
-      textLine: item.textLine || "",  // ✅ Storing textLine
-      font: item.font || "",  // ✅ Storing font
-      notes: item.notes || ""  // ✅ Storing notes
+      textLine: item.textLine || "",
+      font: item.font || "",
+      notes: item.notes || ""
     }));
 
     // ✅ Convert `userId` to ObjectId before storing it
     const order = new Order({
-      userId: new mongoose.Types.ObjectId(userId),  // ✅ Store `userId` as ObjectId
+      userId: new mongoose.Types.ObjectId(userId),
       shippingAddress,
       products: orderProducts,
       totalAmount,
@@ -239,11 +240,83 @@ export const createOrder = async (req, res) => {
     await order.save();
 
     // ✅ Mark User as a Customer (if they are not already)
-    const user = await User.findById(userId);  // ✅ No more ReferenceError
+    const user = await User.findById(userId);
     if (user && !user.isCustomer) {
       user.isCustomer = true;
       await user.save();
       console.log(`✅ User ${userId} is now a customer.`);
+    }
+
+    // ✅ Construct Order Details for Email
+    const orderDetails = orderProducts.map(
+      (item) =>
+        `- ${item.title} (${item.size}, ${item.color}, Quantity: ${item.quantity}) - $${item.price * item.quantity}`
+    ).join("\n");
+
+    const emailMessage = `
+Hello ${shippingAddress.firstName},
+
+Thank you for your order!
+
+Your order details:
+
+Order ID: ${order._id}
+Total Amount: $${totalAmount}
+Final Amount after Discount: $${finalAmount}
+Payment Mode: ${paymentMode}
+
+Products:
+${orderDetails}
+
+We will notify you once your order is shipped.
+
+Best regards,
+E-Commerce Team
+`;
+
+    // ✅ Email to Customer
+    const customerEmailOptions = {
+      email: shippingAddress.email,
+      subject: "Order Confirmation",
+      message: emailMessage,
+    };
+
+    // ✅ Email to Company
+    const companyEmailOptions = {
+      email: process.env.COMPANY_EMAIL, // 🔹 Company's email stored in .env
+      subject: `New Order Received - Order ID: ${order._id}`,
+      message: `
+New order received from ${shippingAddress.firstName} ${shippingAddress.lastName}.
+
+Order Details:
+
+Order ID: ${order._id}
+Customer: ${shippingAddress.firstName} ${shippingAddress.lastName}
+Email: ${shippingAddress.email}
+Phone: ${shippingAddress.phone}
+Total Amount: $${totalAmount}
+Final Amount after Discount: $${finalAmount}
+Payment Mode: ${paymentMode}
+
+Products:
+${orderDetails}
+
+Please process the order accordingly.
+
+Best regards,
+E-Commerce System
+      `,
+    };
+
+    // ✅ Send Emails
+    try {
+      await sendEmail(customerEmailOptions);
+      console.log(`✅ Order confirmation email sent to ${shippingAddress.email}`);
+
+      await sendEmail(companyEmailOptions);
+      console.log(`✅ Order notification email sent to company (${process.env.COMPANY_EMAIL})`);
+    } catch (emailError) {
+      console.error("❌ Error sending emails:", emailError);
     }
 
     res.status(201).json({ success: true, message: "Order created successfully", order });

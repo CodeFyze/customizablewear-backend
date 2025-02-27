@@ -37,12 +37,15 @@ const ProductSchema = new mongoose.Schema({
   colors: {
     type: [String], // Array of color options
   },
+  colorImages: {
+    type: [String], // ✅ Array of color image URLs
+  },
   seller: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
   },
-  customizable: { 
+  customizable: {
     type: Boolean,
     default: false
   }, // Indicates if customization is allowed

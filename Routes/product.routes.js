@@ -1,19 +1,10 @@
 import express from "express";
 import { body } from "express-validator";
 import multer from 'multer';
+import upload from "../Middleware/multerMiddleware.js";
 import { getAllProducts, getProductById, getProductByName, addProduct , updateProduct , deleteProduct  } from "../Controllers/products.controller.js";
 import authenticate from "../Middleware/authenticate.js"; 
 
-
-
-// Set up multer for in-memory storage
-const storage = multer.memoryStorage();
-const upload = multer({ storage }).fields([
-  { name: 'front', maxCount: 1 },
-  { name: 'side', maxCount: 1 },
-  { name: 'back', maxCount: 1 },
-  { name: 'images', maxCount: 10 }
-]);
 
 const router = express.Router();
 
