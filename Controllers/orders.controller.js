@@ -187,136 +187,215 @@ export const getOrderById = async (req, res) => {
 // };
 
 
+// export const createOrder = async (req, res) => {
+//   try {
+//     const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
+//     const userId = req.user?.id;
+
+//     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+//       return res.status(400).json({ success: false, message: "Invalid or missing User ID" });
+//     }
+
+//     if (!shippingAddress || !shippingAddress.firstName || !shippingAddress.address || !products.length) {
+//       return res.status(400).json({ success: false, message: "Missing required fields" });
+//     }
+
+//     const productIds = products.map((item) => item.productId);
+//     const existingProducts = await Product.find({ _id: { $in: productIds } });
+
+//     if (existingProducts.length !== productIds.length) {
+//       return res.status(400).json({ success: false, message: "Some products no longer exist" });
+//     }
+
+//     const orderProducts = products.map((item) => ({
+//       productId: item.productId,
+//       title: item.title,
+//       frontImage: item.frontImage,
+//       sideImage: item.sideImage || "",
+//       price: item.logo ? item.price + 5 : item.price,
+//       size: item.size,
+//       color: item.color,
+//       logo: item.logo || "",
+//       quantity: item.quantity,
+//       method: item.method,
+//       position: item.position,
+//       textLine: item.textLine || "",
+//       font: item.font || "",
+//       notes: item.notes || ""
+//     }));
+
+//     // ✅ Convert `userId` to ObjectId before storing it
+//     const order = new Order({
+//       userId: new mongoose.Types.ObjectId(userId),
+//       shippingAddress,
+//       products: orderProducts,
+//       totalAmount,
+//       promoCode,
+//       discount,
+//       finalAmount,
+//       paymentMode,
+//       paymentStatus: paymentMode === "Online" ? "Paid" : "Pending",
+//     });
+
+//     await order.save();
+
+//     // ✅ Mark User as a Customer (if they are not already)
+//     const user = await User.findById(userId);
+//     if (user && !user.isCustomer) {
+//       user.isCustomer = true;
+//       await user.save();
+//       console.log(`✅ User ${userId} is now a customer.`);
+//     }
+
+//     // ✅ Construct Order Details for Email
+//     const orderDetails = orderProducts.map(
+//       (item) =>
+//         `- ${item.title} (${item.size}, ${item.color}, Quantity: ${item.quantity}) - $${item.price * item.quantity}`
+//     ).join("\n");
+
+//     const emailMessage = `
+// Hello ${shippingAddress.firstName},
+
+// Thank you for your order!
+
+// Your order details:
+
+// Order ID: ${order._id}
+// Total Amount: $${totalAmount}
+// Final Amount after Discount: $${finalAmount}
+// Payment Mode: ${paymentMode}
+
+// Products:
+// ${orderDetails}
+
+// We will notify you once your order is shipped.
+
+// Best regards,
+// E-Commerce Team
+// `;
+
+//     // ✅ Email to Customer
+//     const customerEmailOptions = {
+//       email: shippingAddress.email,
+//       subject: "Order Confirmation",
+//       message: emailMessage,
+//     };
+
+//     // ✅ Email to Company
+//     const companyEmailOptions = {
+//       email: process.env.COMPANY_EMAIL, // 🔹 Company's email stored in .env
+//       subject: `New Order Received - Order ID: ${order._id}`,
+//       message: `
+// New order received from ${shippingAddress.firstName} ${shippingAddress.lastName}.
+
+// Order Details:
+
+// Order ID: ${order._id}
+// Customer: ${shippingAddress.firstName} ${shippingAddress.lastName}
+// Email: ${shippingAddress.email}
+// Phone: ${shippingAddress.phone}
+// Total Amount: $${totalAmount}
+// Final Amount after Discount: $${finalAmount}
+// Payment Mode: ${paymentMode}
+
+// Products:
+// ${orderDetails}
+
+// Please process the order accordingly.
+
+// Best regards,
+// E-Commerce System
+//       `,
+//     };
+
+//     // ✅ Send Emails
+//     try {
+//       await sendEmail(customerEmailOptions);
+//       console.log(`✅ Order confirmation email sent to ${shippingAddress.email}`);
+
+//       await sendEmail(companyEmailOptions);
+//       console.log(`✅ Order notification email sent to company (${process.env.COMPANY_EMAIL})`);
+//     } catch (emailError) {
+//       console.error("❌ Error sending emails:", emailError);
+//     }
+
+//     res.status(201).json({ success: true, message: "Order created successfully", order });
+//   } catch (error) {
+//     console.error("❌ Error creating order:", error);
+//     res.status(500).json({ success: false, message: "Internal Server Error" });
+//   }
+// };
+
+
+
+
+
 export const createOrder = async (req, res) => {
   try {
+    console.log("🚀 Incoming Order Request:", JSON.stringify(req.body, null, 2)); // ✅ Log request data
+
     const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
     const userId = req.user?.id;
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      console.error("❌ Invalid or missing User ID");
       return res.status(400).json({ success: false, message: "Invalid or missing User ID" });
     }
 
     if (!shippingAddress || !shippingAddress.firstName || !shippingAddress.address || !products.length) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+      console.error("❌ Missing required fields:", { shippingAddress, products });
+      return res.status(400).json({ success: false, message: "Missing required fields (Shipping Address or Products)" });
     }
 
+    // Validate product IDs
     const productIds = products.map((item) => item.productId);
     const existingProducts = await Product.find({ _id: { $in: productIds } });
 
     if (existingProducts.length !== productIds.length) {
+      console.error("❌ Some products do not exist:", { productIds, existingProducts });
       return res.status(400).json({ success: false, message: "Some products no longer exist" });
     }
 
+    // Format product data
     const orderProducts = products.map((item) => ({
       productId: item.productId,
-      title: item.title,
-      frontImage: item.frontImage,
+      title: item.title || "Untitled Product",
+      frontImage: item.frontImage || "",
       sideImage: item.sideImage || "",
-      price: item.logo ? item.price + 5 : item.price,
-      size: item.size,
-      color: item.color,
+      price: item.logo ? item.price + 5 : item.price, // Extra charge for logos
+      size: item.size || "Default",
+      color: item.color || "Default",
       logo: item.logo || "",
-      quantity: item.quantity,
-      method: item.method,
-      position: item.position,
+      quantity: item.quantity || 1,
+      method: item.method || "Not selected",
+      position: item.position || "Not selected",
       textLine: item.textLine || "",
       font: item.font || "",
       notes: item.notes || ""
     }));
 
-    // ✅ Convert `userId` to ObjectId before storing it
+    // ✅ Create Order
     const order = new Order({
       userId: new mongoose.Types.ObjectId(userId),
       shippingAddress,
       products: orderProducts,
       totalAmount,
-      promoCode,
-      discount,
+      promoCode: promoCode || "",
+      discount: discount || 0,
       finalAmount,
       paymentMode,
       paymentStatus: paymentMode === "Online" ? "Paid" : "Pending",
     });
 
     await order.save();
+    console.log(`✅ Order ${order._id} created successfully!`);
 
-    // ✅ Mark User as a Customer (if they are not already)
+    // ✅ Update user to "customer"
     const user = await User.findById(userId);
     if (user && !user.isCustomer) {
       user.isCustomer = true;
       await user.save();
-      console.log(`✅ User ${userId} is now a customer.`);
-    }
-
-    // ✅ Construct Order Details for Email
-    const orderDetails = orderProducts.map(
-      (item) =>
-        `- ${item.title} (${item.size}, ${item.color}, Quantity: ${item.quantity}) - $${item.price * item.quantity}`
-    ).join("\n");
-
-    const emailMessage = `
-Hello ${shippingAddress.firstName},
-
-Thank you for your order!
-
-Your order details:
-
-Order ID: ${order._id}
-Total Amount: $${totalAmount}
-Final Amount after Discount: $${finalAmount}
-Payment Mode: ${paymentMode}
-
-Products:
-${orderDetails}
-
-We will notify you once your order is shipped.
-
-Best regards,
-E-Commerce Team
-`;
-
-    // ✅ Email to Customer
-    const customerEmailOptions = {
-      email: shippingAddress.email,
-      subject: "Order Confirmation",
-      message: emailMessage,
-    };
-
-    // ✅ Email to Company
-    const companyEmailOptions = {
-      email: process.env.COMPANY_EMAIL, // 🔹 Company's email stored in .env
-      subject: `New Order Received - Order ID: ${order._id}`,
-      message: `
-New order received from ${shippingAddress.firstName} ${shippingAddress.lastName}.
-
-Order Details:
-
-Order ID: ${order._id}
-Customer: ${shippingAddress.firstName} ${shippingAddress.lastName}
-Email: ${shippingAddress.email}
-Phone: ${shippingAddress.phone}
-Total Amount: $${totalAmount}
-Final Amount after Discount: $${finalAmount}
-Payment Mode: ${paymentMode}
-
-Products:
-${orderDetails}
-
-Please process the order accordingly.
-
-Best regards,
-E-Commerce System
-      `,
-    };
-
-    // ✅ Send Emails
-    try {
-      await sendEmail(customerEmailOptions);
-      console.log(`✅ Order confirmation email sent to ${shippingAddress.email}`);
-
-      await sendEmail(companyEmailOptions);
-      console.log(`✅ Order notification email sent to company (${process.env.COMPANY_EMAIL})`);
-    } catch (emailError) {
-      console.error("❌ Error sending emails:", emailError);
+      console.log(`✅ User ${userId} is now marked as a customer.`);
     }
 
     res.status(201).json({ success: true, message: "Order created successfully", order });
@@ -325,6 +404,10 @@ E-Commerce System
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+
+
+
+
 
 export const updateOrder = async (req, res) => {
   try {

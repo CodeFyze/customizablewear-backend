@@ -12,12 +12,11 @@ dotenv.config();
 export const signup = async (req, res) => {
   try {
     console.log(req.body);
-    console.log(req.file);
     
     // Validate request
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
+      console.log("Validation errors:", errors.array());
       return res.status(400).json({
         success: false,
         message: `Validation errors - ${errors.array()[0].msg}`,
@@ -30,144 +29,36 @@ export const signup = async (req, res) => {
     req.body.password = hash;
 
     // Check if user already exists
-    let user = await User.findOne({ email: req.body.email }).select("email");
-    console.log(user);
-    console.log(req.body.email);
+    let user = await User.findOne({ email: req.body.email }).select("email verified");
+
     if (user) {
-      console.log('User already exists:', user);
-      return res.status(400).json({
-        success: false,
-        message: "Sorry, a user with this email already exists",
-      });
-    }
-    
-    user = User(req.body);
-
-    // Generate OTP and send email
-    const otp = user.generateOTP();
-    const message = `Your OTP is :- \n\n ${otp} \n\nIf you have not requested this email, please ignore it.`;
-
-    await sendEmail({
-      email: user.email,
-      subject: "OTP for email verification",
-      message,
-    });
-    
-    await user.save();
-
-    res.status(201).json({
-      success: true,
-      message: "User created - Must verify email with OTP",
-    });
-  } catch (error) {
-    console.error("Error in signup route", error);
-    res.status(500).json({
-      success: false,
-      message: "An internal server error occurred",
-    });
-  }
-};
-
-export const verifySignup = async (req, res) => {
-  try {
-    // If there are errors, return Bad request and the errors
-    console.log(req.body);
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: `Validation errors - ${errors.array()[0].msg}`,
-      });
-    }
-    const { otp } = req.body;
-
-    // Find the user with the matching OTP
-    const user = await User.findOne({ otp }).select(
-      "otp otpExpires tokenVersion verified refreshToken role"
-    );
-    if (!user)
-      return res
-        .status(400)
-        .json({ success: false, message: "No user found with this OTP" });
-
-    // Check if user is already verified
-    if (user.verified)
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message: "User is already verified",
-          user: { role: user.role }, // Include role in response
+      // ✅ If user exists but is not verified, update it instead of creating a new one
+      if (!user.verified) {
+        console.log(`⚠️ Updating existing user (${user.email}) and marking as verified`);
+        user.password = hash;
+        user.verified = true;
+        await user.save();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: "Sorry, a user with this email already exists",
         });
-
-    // Check if OTP is valid
-    const isOtpValid = user.verifyOTP(Number(otp));
-    if (!isOtpValid)
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid OTP" });
-
-    // Clear the OTP
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    user.verified = true;
-
-    // Create and return a token
-    const data = { user: { id: user.id, tokenVersion: user.tokenVersion } };
-    const { refreshToken } = generateTokenAndSetCookie(data, res);
-    user.refreshToken = refreshToken;
-
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Email verified successfully",
-      user: { role: user.role }, // Include role in response
-    });
-  } catch (error) {
-    console.error("Error in signup route", error);
-    res.status(500).json({
-      success: false,
-      message: "An internal server error occurred",
-    });
-  }
-};
-
-
-
-export const login = async (req, res) => {
-  try {
-    // Find user by email and select relevant fields
-    let user = await User.findOne({ email: req.body.email }).select("password tokenVersion verified refreshToken email role");
-
-    if (!user) {
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
+      }
+    } else {
+      // ✅ Create new user and mark as verified
+      user = new User({ ...req.body, verified: true });
+      await user.save();
     }
 
-    if (!user.verified) {
-      return res.status(400).json({ success: false, message: "Please verify your email first." });
-    }
-
-    // Compare hashed passwords
-    const isPasswordValid = await bcrypt.compare(req.body.password, user.password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ success: false, message: "Invalid email or password" });
-    }
-
-    // Ensure JWT secret is set
-    const jwtSecret = process.env.JWT_SECRET || "fallback_secret_key"; 
-    if (!jwtSecret) {
-      throw new Error("JWT_SECRET is missing from environment variables");
-    }
-
-    // ✅ Corrected Token Structure
+    // Generate JWT token for immediate authentication
+    const jwtSecret = process.env.JWT_SECRET || "fallback_secret_key";
     const token = jwt.sign(
-      { user: { id: user.id, tokenVersion: user.tokenVersion, role: user.role } }, // ✅ Fix token structure
-      jwtSecret, 
+      { user: { id: user._id, tokenVersion: user.tokenVersion, role: user.role } },
+      jwtSecret,
       { expiresIn: "1d" }
     );
 
-    // Store token & user role in HTTP-only cookies
+    // Store token in HTTP-only cookies
     res.cookie("authToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -180,15 +71,93 @@ export const login = async (req, res) => {
       sameSite: "Strict",
     });
 
-    // ✅ Return response including JWT token
+    res.status(201).json({
+      success: true,
+      message: "User created and logged in",
+      token,
+      user: { role: user.role },
+    });
+
+  } catch (error) {
+    console.error("❌ Error in signup route", error);
+    res.status(500).json({
+      success: false,
+      message: "An internal server error occurred",
+    });
+  }
+};
+
+
+
+export const login = async (req, res) => {
+  try {
+    console.log("🚀 Incoming Login Request:", req.body);
+
+    // Validate Request Data
+    if (!req.body.email || !req.body.password) {
+      console.error("❌ Missing email or password in request");
+      return res.status(400).json({ success: false, message: "Email and password are required" });
+    }
+
+    // Find user by email
+    let user = await User.findOne({ email: req.body.email }).select("password tokenVersion verified email role");
+
+    if (!user) {
+      console.error("❌ User not found with email:", req.body.email);
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // ✅ If the user is not verified, mark them as verified
+    if (!user.verified) {
+      console.log(`✅ Automatically verifying user (${user.email})`);
+      user.verified = true;
+      await user.save();
+    }
+
+    // Compare hashed passwords
+    const isPasswordValid = await bcrypt.compare(req.body.password, user.password);
+    if (!isPasswordValid) {
+      console.error("❌ Invalid password for user:", req.body.email);
+      return res.status(400).json({ success: false, message: "Invalid email or password" });
+    }
+
+    // Ensure JWT secret is set
+    const jwtSecret = process.env.JWT_SECRET || "fallback_secret_key"; 
+    if (!jwtSecret) {
+      throw new Error("JWT_SECRET is missing from environment variables");
+    }
+
+    // ✅ Generate JWT Token
+    const token = jwt.sign(
+      { user: { id: user.id, tokenVersion: user.tokenVersion, role: user.role } },
+      jwtSecret, 
+      { expiresIn: "1d" }
+    );
+
+    // Store token in HTTP-only cookies
+    res.cookie("authToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+    });
+
+    res.cookie("userRole", user.role, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+    });
+
+    console.log("✅ Login successful for user:", user.email);
+
     res.status(200).json({
       success: true,
       message: "User signed in",
-      token, // ✅ Now returning the JWT token
+      token,
       user: { role: user.role },
     });
+
   } catch (error) {
-    console.error("Error in login route:", error);
+    console.error("❌ Error in login route:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
@@ -502,57 +471,6 @@ export const updateUser = async (req, res) => {
 };
 
 
-// export const isAdmin = async (req, res) => {
-//   try {
-//     const userRole = req.cookies.userRole; 
-
-//     if (!userRole) {
-//       return res.status(401).json({ success: false, message: "Unauthorized - No role found" });
-//     }
-
-//     if (userRole !== "seller") {
-//       return res.status(403).json({ success: false, message: "User is not an admin", isAdmin: false });
-//     }
-
-//     res.status(200).json({ success: true, message: "User is an admin", isAdmin: true });
-//   } catch (error) {
-//     console.error("Error in isAdmin route", error);
-//     res.status(500).json({ success: false, message: "Internal server error" });
-//   }
-// };
-
-
-
-
-
-// export const isAdmin = async (req, res) => {
-//   try {
-//     let token = req.cookies?.authToken || req.headers.authorization?.split(" ")[1];
-
-//     if (!token) {
-//       return res.status(401).json({ success: false, message: "Unauthorized - No token found" });
-//     }
-
-//     try {
-//       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-//       if (!decoded || decoded.role !== "seller") {
-//         return res.status(403).json({ success: false, message: "User is not an admin", isAdmin: false });
-//       }
-
-//       return res.status(200).json({ success: true, message: "User is an admin", isAdmin: true });
-
-//     } catch (err) {
-//       return res.status(401).json({
-//         success: false,
-//         message: err.name === "TokenExpiredError" ? "Unauthorized - Token expired" : "Unauthorized - Invalid token",
-//       });
-//     }
-//   } catch (error) {
-//     console.error("Error in isAdmin route:", error);
-//     res.status(500).json({ success: false, message: "Internal server error" });
-//   }
-// };
 
 
 export const isAdmin = async (req, res) => {

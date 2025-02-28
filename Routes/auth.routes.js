@@ -9,7 +9,7 @@ import {
   updatePassword,
   getUserDetails,
   updateUser,
-  verifySignup,
+  // verifySignup,
   refreshToken,
   isAdmin,
   getUserId
@@ -58,13 +58,13 @@ router.get("/user-id", getUserId);
 //   verifySignup
 // );
 
-router.post(
-  "/signup/verify",
-  [
-    body("otp", "OTP must be 6 digits long").trim().isNumeric().isLength({ min: 6, max: 6 }),
-  ],
-  verifySignup
-);
+// router.post(
+//   "/signup/verify",
+//   [
+//     body("otp", "OTP must be 6 digits long").trim().isNumeric().isLength({ min: 6, max: 6 }),
+//   ],
+//   verifySignup
+// );
 
 // Login using: POST "/api/auth/login". No Auth required
 router.post(
