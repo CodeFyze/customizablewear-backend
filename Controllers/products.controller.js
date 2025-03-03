@@ -56,6 +56,87 @@ export const getProductByName = async (req, res) => {
 
 
 
+// export const addProduct = async (req, res) => {
+//   try {
+//     console.log("Received request to add product", req.body);
+//     console.log("Files received:", req.files);
+
+//     // Ensure all required images are uploaded
+//     if (!req.files || !req.files["front"] || !req.files["side"] || !req.files["back"]) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Front, side, and back images are required",
+//       });
+//     }
+
+//     // ✅ Parse colors from request body (ensure it's an array)
+//     let colors = req.body.colors ? JSON.parse(req.body.colors) : [];
+//     let colorImages = [];
+
+//     // ✅ Upload color images & match them to colors
+//     if (req.files["colorImages"]) {
+//       req.files["colorImages"].forEach(async (image, index) => {
+//         const color = colors[index] || "#000000"; // Default color if missing
+//         const imageUrl = await uploadToCloudinary(image, `${req.body.title}_color_${index}`);
+//         colorImages.push({ color, imageUrl });
+//       });
+//     }
+
+//     // Ensure required fields like title and price are provided
+//     if (!req.body.title || !req.body.price) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Title and price are required",
+//       });
+//     }
+
+//     // ✅ Upload required product images to Cloudinary
+//     const frontImageUrl = await uploadToCloudinary(req.files["front"][0], `${req.body.title}_front`);
+//     const sideImageUrl = await uploadToCloudinary(req.files["side"][0], `${req.body.title}_side`);
+//     const backImageUrl = await uploadToCloudinary(req.files["back"][0], `${req.body.title}_back`);
+
+//     // ✅ Upload additional images
+//     const additionalImages = [];
+//     if (req.files["images"]) {
+//       for (const image of req.files["images"]) {
+//         const imageUrl = await uploadToCloudinary(image, `${req.body.title}_extra_${Date.now()}`);
+//         additionalImages.push(imageUrl);
+//       }
+//     }
+
+//     // ✅ Save product to database with colors & images
+//     const product = new Product({
+//       title: req.body.title,
+//       price: req.body.price,
+//       stock: req.body.stock || "In Stock",
+//       frontImage: frontImageUrl,
+//       sideImage: sideImageUrl,
+//       backImage: backImageUrl,
+//       images: additionalImages,
+//     size : req.body.size,
+//     description : req.body.description,
+//       colors: colorImages.map((item) => item.color), 
+//       colorImages: colorImages.map((item) => item.imageUrl),
+//       seller: req.user.id,
+//       customizable: req.body.customizable || false,
+//     });
+
+//     await product.save();
+//     res.status(201).json({ success: true, product });
+//   } catch (error) {
+//     console.error("Error in add product route:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "An internal server error occurred",
+//     });
+//   }
+// };
+
+
+
+
+
+
 export const addProduct = async (req, res) => {
   try {
     console.log("Received request to add product", req.body);
@@ -104,6 +185,9 @@ export const addProduct = async (req, res) => {
       }
     }
 
+    // ✅ Parse sizes from request body
+    let sizes = req.body.sizes ? JSON.parse(req.body.sizes) : [];
+
     // ✅ Save product to database with colors & images
     const product = new Product({
       title: req.body.title,
@@ -113,7 +197,9 @@ export const addProduct = async (req, res) => {
       sideImage: sideImageUrl,
       backImage: backImageUrl,
       images: additionalImages,
-      colors: colorImages.map((item) => item.color), 
+      size: sizes, // ✅ Correctly store the sizes
+      description: req.body.description,
+      colors: colorImages.map((item) => item.color),
       colorImages: colorImages.map((item) => item.imageUrl),
       seller: req.user.id,
       customizable: req.body.customizable || false,
@@ -129,6 +215,10 @@ export const addProduct = async (req, res) => {
     });
   }
 };
+
+
+
+
 
 
 export const updateProduct = async (req, res) => {

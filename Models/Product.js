@@ -14,6 +14,14 @@ const ProductSchema = new mongoose.Schema({
     trim: true,
     // minlength: 10,
   },
+
+
+  size: {
+    type: [String],
+    required: true,
+  },
+
+
   price: {
     type: Number,
     required: true,
