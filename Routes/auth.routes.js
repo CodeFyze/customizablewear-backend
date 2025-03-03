@@ -1,18 +1,18 @@
 import express from "express";
 import { body } from "express-validator";
 import {
-  signup,
+  forgetPassword,
+  getUserDetails,
+  getUserId,
+  isAdmin,
   login,
   logout,
-  forgetPassword,
-  resetPassword,
-  updatePassword,
-  getUserDetails,
-  updateUser,
   // verifySignup,
   refreshToken,
-  isAdmin,
-  getUserId
+  resetPassword,
+  signup,
+  updatePassword,
+  updateUser
 } from "../Controllers/auth.controller.js";
 import authenticate from "../Middleware/authenticate.js";
 
@@ -78,6 +78,7 @@ router.post(
   login
 );
 
+
 // Logout using: GET "/api/auth/logout". No Auth required
 router.post("/logout", logout);
 
@@ -139,6 +140,8 @@ router.post(
   ],
   updateUser
 );
+
+
 
 // Is Logged In using: GET "/api/auth/isAdmin". No Auth required
 router.get("/isAdmin", authenticate, isAdmin);

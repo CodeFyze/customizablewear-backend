@@ -148,13 +148,12 @@ export const login = async (req, res) => {
     });
 
     console.log("✅ Login successful for user:", user.email);
-
-    res.status(200).json({
-      success: true,
-      message: "User signed in",
-      token,
-      user: { role: user.role },
-    });
+res.status(200).json({
+	success: true,
+	message: 'User signed in',
+	token,
+	user: { id: user.id, role: user.role },
+});
 
   } catch (error) {
     console.error("❌ Error in login route:", error);

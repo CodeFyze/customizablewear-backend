@@ -7,6 +7,7 @@ import Cart from "../Models/Cart.js";
 
 
 export const getAllOrders = async (req, res) => {
+  console.log("getting all orders")
   try {
     // Log the incoming request to check the user ID and role
     console.log("Fetching orders for user ID:", req.user.id);
