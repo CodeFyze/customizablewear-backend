@@ -24,6 +24,8 @@ const upload = multer({ storage }).single('profilePic');
 const router = express.Router();
 
 // Create a new user using: POST "/api/auth/signup". Doesn't require Auth
+
+
 router.post(
   "/signup",
   upload,

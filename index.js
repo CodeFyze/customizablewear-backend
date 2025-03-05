@@ -9,6 +9,7 @@ import orderRoutes from "./Routes/order.routes.js";
 import authenticate from "./Middleware/authenticate.js";
 import CartRoutes from "./Routes/cartRoute.js";
 
+import contactRoutes from "./Routes/contact.routes.js"
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", authenticate, orderRoutes);
 app.use("/api/cart", CartRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.listen(port, () => {
   console.info(`Ecommerce app listening at http://localhost:${port}`);
