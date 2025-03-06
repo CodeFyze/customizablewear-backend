@@ -4,6 +4,9 @@ import mongoose from "mongoose";
 import User from "../Models/User.js";
 import sendEmail from "../Utils/sendEmail.js";
 import Cart from "../Models/Cart.js";
+import chalk from "chalk";
+import nodemailer from "nodemailer"
+import { selectFields } from "express-validator/lib/field-selection.js";
 
 
 export const getAllOrders = async (req, res) => {
@@ -121,81 +124,125 @@ export const getOrderById = async (req, res) => {
   }
 };
 
-
 export const createOrder = async (req, res) => {
-  try {
-    console.log("🚀 Incoming Order Request:", JSON.stringify(req.body, null, 2)); // ✅ Log request data
+	try {
+		console.log('🚀 Incoming Order Request:', JSON.stringify(req.body, null, 2));
 
-    const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
-    const userId = req.user?.id;
+		const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
+		const userId = req.user?.id;
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      console.error("❌ Invalid or missing User ID");
-      return res.status(400).json({ success: false, message: "Invalid or missing User ID" });
-    }
+		if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+			console.error('❌ Invalid or missing User ID');
+			return res.status(400).json({ success: false, message: 'Invalid or missing User ID' });
+		}
 
-    if (!shippingAddress || !shippingAddress.firstName || !shippingAddress.address || !products.length) {
-      console.error("❌ Missing required fields:", { shippingAddress, products });
-      return res.status(400).json({ success: false, message: "Missing required fields (Shipping Address or Products)" });
-    }
+		if (!shippingAddress || !shippingAddress.firstName || !shippingAddress.address || products.length === 0) {
+			console.error('❌ Missing required fields:', { shippingAddress, products });
+			return res
+				.status(400)
+				.json({ success: false, message: 'Missing required fields (Shipping Address or Products)' });
+		}
 
-    // Validate product IDs
-    const productIds = products.map((item) => item.productId);
-    const existingProducts = await Product.find({ _id: { $in: productIds } });
+		const productIds = products.map((item) => item.productId);
+		const existingProducts = await Product.find({ _id: { $in: productIds } });
 
-    if (existingProducts.length !== productIds.length) {
-      console.error("❌ Some products do not exist:", { productIds, existingProducts });
-      return res.status(400).json({ success: false, message: "Some products no longer exist" });
-    }
+		if (existingProducts.length !== productIds.length) {
+			console.error('❌ Some products do not exist:', { productIds, existingProducts });
+			return res.status(400).json({ success: false, message: 'Some products no longer exist' });
+		}
 
-    // Format product data
-    const orderProducts = products.map((item) => ({
-      productId: item.productId,
-      title: item.title || "Untitled Product",
-      frontImage: item.frontImage || "",
-      sideImage: item.sideImage || "",
-      price: item.logo ? item.price + 5 : item.price, // Extra charge for logos
-      size: item.size || "Default",
-      color: item.color || "Default",
-      logo: item.logo || "",
-      quantity: item.quantity || 1,
-      method: item.method || "Not selected",
-      position: item.position || "Not selected",
-      textLine: item.textLine || "",
-      font: item.font || "",
-      notes: item.notes || ""
-    }));
+		const orderProducts = products.map((item) => ({
+			productId: item.productId,
+			title: item.title || 'Untitled Product',
+			frontImage: item.frontImage || 'Default',
+			sideImage: item.sideImage || '',
+			price: item.logo ? item.price + 5 : item.price,
+			size: item.size || 'Default',
+			color: item.color || 'Default',
+			logo: item.logo || '',
+			quantity: item.quantity || 1,
+			method: item.method || 'Not selected',
+			position: item.position || 'Not selected',
+			textLine: item.textLine || '',
+			font: item.font || '',
+			notes: item.notes || '',
+		}));
 
-    // ✅ Create Order
-    const order = new Order({
-      userId: new mongoose.Types.ObjectId(userId),
-      shippingAddress,
-      products: orderProducts,
-      totalAmount,
-      promoCode: promoCode || "",
-      discount: discount || 0,
-      finalAmount,
-      paymentMode,
-      paymentStatus: paymentMode === "Online" ? "Paid" : "Pending",
-    });
+		const order = new Order({
+			userId: new mongoose.Types.ObjectId(userId),
+			shippingAddress,
+			products: orderProducts,
+			totalAmount,
+			promoCode: promoCode || '',
+			discount: discount || 0,
+			finalAmount,
+			paymentMode,
+			paymentStatus: paymentMode === 'Online' ? 'Paid' : 'Pending',
+		});
 
-    await order.save();
-    console.log(`✅ Order ${order._id} created successfully!`);
+		await order.save();
+		console.log(`✅ Order ${order._id} created successfully!`);
 
-    // ✅ Update user to "customer"
-    const user = await User.findById(userId);
-    if (user && !user.isCustomer) {
-      user.isCustomer = true;
-      await user.save();
-      console.log(`✅ User ${userId} is now marked as a customer.`);
-    }
+		const user = await User.findById(userId);
+		if (user && !user.isCustomer) {
+			user.isCustomer = true;
+			await user.save();
+			console.log(`✅ User ${userId} is now marked as a customer.`);
+		}
 
-    res.status(201).json({ success: true, message: "Order created successfully", order });
-  } catch (error) {
-    console.error("❌ Error creating order:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
+		// ✅ Send order confirmation email to customer
+		if (user?.email) {
+			await sendOrderConfirmationEmail(user.email,process.env.SMPT_MAIL, user?.firstName, order._id);
+			console.log(`📧 Order confirmation email sent to ${user.email}`);
+		}
+
+		res.status(201).json({ success: true, message: 'Order created successfully', order });
+	} catch (error) {
+		console.error('❌ Error creating order:', error);
+		res.status(500).json({ success: false, message: 'Internal Server Error' });
+	}
 };
+
+// Configure nodemailer transporter
+ const transporter = nodemailer.createTransport({
+        service: process.env.SMPT_SERVICE,
+        auth: {
+            user: process.env.SMPT_MAIL,
+            pass: process.env.SMPT_PASSWORD,
+        },
+        tls: {
+            rejectUnauthorized: false,
+        },
+    });
+// Function to send order confirmation email
+const sendOrderConfirmationEmail = async (customerEmail, sellerEmail, customerName, orderId) => {
+	try {
+		// Email content for the customer
+		const customerMailOptions = {
+			from: sellerEmail,
+			to: customerEmail,
+			subject: 'Order Confirmation',
+			text: `Thank you for your order! Your order ID is: ${orderId}`,
+		};
+
+		// Email content for the seller
+		const sellerMailOptions = {
+			from: customerEmail,
+			to: sellerEmail,
+			subject: 'New Order Received',
+			text: `User ${customerName} (${customerEmail}) has placed an order. Order ID: ${orderId}`,
+		};
+
+		// Send both emails
+		await transporter.sendMail(customerMailOptions);
+		await transporter.sendMail(sellerMailOptions);
+
+		console.log('Emails sent to customer and seller');
+	} catch (error) {
+		console.error('Error sending emails:', error);
+	}
+};
+
 
 
 
