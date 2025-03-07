@@ -191,7 +191,8 @@ export const createOrder = async (req, res) => {
 		}
 
 		// ✅ Send order confirmation email to customer
-		if (user?.email) {
+    if (user?.email) {
+      console.log(chalk.bgGreen.white(process.env.SMPT_MAIL))
 			await sendOrderConfirmationEmail(user.email,process.env.SMPT_MAIL, user?.firstName, order._id);
 			console.log(`📧 Order confirmation email sent to ${user.email}`);
 		}
