@@ -32,11 +32,11 @@ const ProductSchema = new mongoose.Schema({
   },
   sideImage: {
     type: String,
-    required: true,
+    // required: true,
   },
   backImage: {
     type: String,
-    required: true,
+    // required: true,
   },
   images: {
     type: [String], // Array of image URLs
@@ -57,6 +57,11 @@ const ProductSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   }, // Indicates if customization is allowed
+  productType: {
+    type: [String], // Array to store selected product types
+    enum: ['hoodie', 'shirt', 'trouser'], // Restrict to specific types
+  },
+
 }, { timestamps: true });
 
 function arrayLimit(val) {
