@@ -54,8 +54,6 @@ export const getProductByName = async (req, res) => {
 
 
 
-
-
 // export const addProduct = async (req, res) => {
 //   try {
 //     console.log("Received request to add product", req.body);
@@ -104,6 +102,9 @@ export const getProductByName = async (req, res) => {
 //       }
 //     }
 
+//     // ✅ Parse sizes from request body
+//     let sizes = req.body.sizes ? JSON.parse(req.body.sizes) : [];
+
 //     // ✅ Save product to database with colors & images
 //     const product = new Product({
 //       title: req.body.title,
@@ -113,9 +114,9 @@ export const getProductByName = async (req, res) => {
 //       sideImage: sideImageUrl,
 //       backImage: backImageUrl,
 //       images: additionalImages,
-//     size : req.body.size,
-//     description : req.body.description,
-//       colors: colorImages.map((item) => item.color), 
+//       size: sizes, // ✅ Correctly store the sizes
+//       description: req.body.description,
+//       colors: colorImages.map((item) => item.color),
 //       colorImages: colorImages.map((item) => item.imageUrl),
 //       seller: req.user.id,
 //       customizable: req.body.customizable || false,
@@ -133,20 +134,16 @@ export const getProductByName = async (req, res) => {
 // };
 
 
-
-
-
-
 export const addProduct = async (req, res) => {
   try {
     console.log("Received request to add product", req.body);
     console.log("Files received:", req.files);
 
-    // Ensure all required images are uploaded
-    if (!req.files || !req.files["front"] || !req.files["side"] || !req.files["back"]) {
+    // Ensure that the front image is uploaded
+    if (!req.files || !req.files["front"]) {
       return res.status(400).json({
         success: false,
-        message: "Front, side, and back images are required",
+        message: "Front image is required",
       });
     }
 
@@ -171,10 +168,19 @@ export const addProduct = async (req, res) => {
       });
     }
 
-    // ✅ Upload required product images to Cloudinary
+    // ✅ Upload required front image to Cloudinary
     const frontImageUrl = await uploadToCloudinary(req.files["front"][0], `${req.body.title}_front`);
-    const sideImageUrl = await uploadToCloudinary(req.files["side"][0], `${req.body.title}_side`);
-    const backImageUrl = await uploadToCloudinary(req.files["back"][0], `${req.body.title}_back`);
+
+    // ✅ Optional side and back images (upload if they exist)
+    let sideImageUrl = null;
+    if (req.files["side"]) {
+      sideImageUrl = await uploadToCloudinary(req.files["side"][0], `${req.body.title}_side`);
+    }
+
+    let backImageUrl = null;
+    if (req.files["back"]) {
+      backImageUrl = await uploadToCloudinary(req.files["back"][0], `${req.body.title}_back`);
+    }
 
     // ✅ Upload additional images
     const additionalImages = [];
@@ -188,21 +194,33 @@ export const addProduct = async (req, res) => {
     // ✅ Parse sizes from request body
     let sizes = req.body.sizes ? JSON.parse(req.body.sizes) : [];
 
+    // ✅ Parse product type from request body
+    const productType = req.body.productType ? JSON.parse(req.body.productType) : [];
+
+    // Ensure that product type is selected
+    if (productType.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one product type (hoodie, shirt, trouser) must be selected",
+      });
+    }
+
     // ✅ Save product to database with colors & images
     const product = new Product({
       title: req.body.title,
       price: req.body.price,
       stock: req.body.stock || "In Stock",
       frontImage: frontImageUrl,
-      sideImage: sideImageUrl,
-      backImage: backImageUrl,
+      sideImage: sideImageUrl, // Can be null if not provided
+      backImage: backImageUrl, // Can be null if not provided
       images: additionalImages,
-      size: sizes, // ✅ Correctly store the sizes
+      size: sizes,
       description: req.body.description,
       colors: colorImages.map((item) => item.color),
       colorImages: colorImages.map((item) => item.imageUrl),
       seller: req.user.id,
       customizable: req.body.customizable || false,
+      productType: productType, // Save the product type
     });
 
     await product.save();
@@ -215,10 +233,6 @@ export const addProduct = async (req, res) => {
     });
   }
 };
-
-
-
-
 
 
 export const updateProduct = async (req, res) => {

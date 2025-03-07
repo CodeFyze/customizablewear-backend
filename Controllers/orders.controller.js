@@ -247,8 +247,6 @@ const sendOrderConfirmationEmail = async (customerEmail, sellerEmail, customerNa
 
 
 
-
-
 export const updateOrder = async (req, res) => {
   try {
     const { id } = req.params;
