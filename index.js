@@ -20,12 +20,12 @@ const port = process.env.PORT || 5000;
 connectToMongo();
 
 app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true, // Allow authentication (cookies)
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
+	cors({
+		origin: ['http://localhost:5173', 'http://localhost:5174'],
+		credentials: true, // Allow authentication (cookies)
+		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+		allowedHeaders: ['Content-Type', 'Authorization'],
+	}),
 );
 
 app.use(express.json());

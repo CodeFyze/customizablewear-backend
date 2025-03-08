@@ -54,6 +54,7 @@ const authenticate = async (req, res, next) => {
   try {
     // ✅ Get token from Cookies OR Authorization Header
     let token = req.cookies.accessToken;
+    console.log(token)
 
     if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
       token = req.headers.authorization.split(" ")[1]; 

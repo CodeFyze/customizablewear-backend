@@ -45,26 +45,22 @@ router.post(
 );
 
 router.put(
-  "/orders/update/:id",
-  [
-    param("id", "Invalid order ID").isMongoId(),
-    body("status", "Invalid status")
-      .optional()
-      .isString()
-      .isIn(["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"]),
-    body("products", "Products must be an array").optional().isArray(),
-    body("products.*.productId", "Product ID is invalid")
-      .optional()
-      .isMongoId(),
-    body("products.*.quantity", "Quantity must be a positive integer")
-      .optional()
-      .isInt({ gt: 0 }),
-    body("products.*.customizations", "Customizations must be an object")
-      .optional()
-      .isObject(),
-  ],
-  updateOrder
+	'/update/:id',
+	[
+		param('id', 'Invalid order ID').isMongoId(),
+		body('status', 'Invalid status')
+			.optional()
+			.isString()
+			.isIn(['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled']),
+		body('products', 'Products must be an array').optional().isArray(),
+		body('products.*.productId', 'Product ID is invalid').optional().isMongoId(),
+		body('products.*.quantity', 'Quantity must be a positive integer').optional().isInt({ gt: 0 }),
+		body('products.*.customizations', 'Customizations must be an object').optional().isObject(),
+	],
+	updateOrder,
 );
+
+
 
 router.get("/customers", getCustomers);
 

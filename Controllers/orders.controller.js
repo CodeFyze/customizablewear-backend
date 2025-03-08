@@ -7,6 +7,7 @@ import Cart from "../Models/Cart.js";
 import chalk from "chalk";
 import nodemailer from "nodemailer"
 import { selectFields } from "express-validator/lib/field-selection.js";
+import Promo from "../Models/Promo.js";
 
 
 export const getAllOrders = async (req, res) => {
@@ -124,12 +125,13 @@ export const getOrderById = async (req, res) => {
   }
 };
 
+
 export const createOrder = async (req, res) => {
 	try {
 		console.log('🚀 Incoming Order Request:', JSON.stringify(req.body, null, 2));
 
 		const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
-		const userId = req.user?.id;
+    const userId = req.user?.id;
 
 		if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
 			console.error('❌ Invalid or missing User ID');
@@ -191,9 +193,8 @@ export const createOrder = async (req, res) => {
 		}
 
 		// ✅ Send order confirmation email to customer
-    if (user?.email) {
-      console.log(chalk.bgGreen.white(process.env.SMPT_MAIL))
-			await sendOrderConfirmationEmail(user.email,process.env.SMPT_MAIL, user?.firstName, order._id);
+		if (user?.email) {
+			await sendOrderConfirmationEmail(user.email, process.env.SMPT_MAIL, user?.firstName, order._id);
 			console.log(`📧 Order confirmation email sent to ${user.email}`);
 		}
 
@@ -248,23 +249,71 @@ const sendOrderConfirmationEmail = async (customerEmail, sellerEmail, customerNa
 
 
 export const updateOrder = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
+	try {
+		const { id } = req.params;
+		const updates = req.body;
 
-    // Find and update the order with the provided ID
-    const updatedOrder = await Order.findByIdAndUpdate(id, updates, { new: true });
+		// Validate order ID
+		if (!mongoose.Types.ObjectId.isValid(id)) {
+			return res.status(400).json({ error: 'Invalid order ID' });
+		}
 
-    // If order not found, return 404 error
-    if (!updatedOrder) {
-      return res.status(404).json({ error: "Order not found" });
-    }
+		// Validate updates
+		if (!updates || Object.keys(updates).length === 0) {
+			return res.status(400).json({ error: 'No updates provided' });
+		}
 
-    res.json(updatedOrder);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update order" });
-  }
+		// Find and update the order
+		const updatedOrder = await Order.findByIdAndUpdate(id, updates, { new: true }).populate('userId');
+
+		// If order not found
+		if (!updatedOrder) {
+			return res.status(404).json({ error: 'Order not found' });
+		}
+
+		// Get customer and seller emails
+		const customerEmail = updatedOrder.userId.email;
+		const sellerEmail = process.env.SMPT_MAIL; // Assuming the seller email is stored in env
+
+		// If status is updated, send an email
+		if (updates.status) {
+			await sendOrderStatusUpdateEmail(customerEmail, sellerEmail, updatedOrder._id, updates.status);
+			console.log(`📧 Order status update email sent to ${customerEmail} and ${sellerEmail}`);
+		}
+
+		// Return updated order
+		res.json({ success: true, message: 'Order updated successfully', updatedOrder });
+	} catch (error) {
+		console.error('❌ Error updating order:', error);
+		res.status(500).json({ error: 'Failed to update order' });
+	}
 };
+const sendOrderStatusUpdateEmail = async (customerEmail, sellerEmail, orderId, status) => {
+	try {
+		const mailOptionsCustomer = {
+			from: sellerEmail,
+			to: customerEmail,
+			subject: `Order #${orderId} Status Updated`,
+			text: `Your order with ID ${orderId} has been updated to: ${status}. Thank you for shopping with us!`,
+		};
+
+		const mailOptionsSeller = {
+			from: sellerEmail,
+			to: sellerEmail,
+			subject: `Order #${orderId} Status Changed`,
+			text: `The order with ID ${orderId} has been updated to: ${status}.`,
+		};
+
+		// Send emails to both customer and seller
+		await transporter.sendMail(mailOptionsCustomer);
+		await transporter.sendMail(mailOptionsSeller);
+
+		console.log(`📧 Order status update emails sent successfully.`);
+	} catch (error) {
+		console.error('❌ Error sending status update emails:', error);
+	}
+};
+
 
 // Delete an order
 export const deleteOrder = async (req, res) => {
@@ -332,3 +381,4 @@ export const getCustomers = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+

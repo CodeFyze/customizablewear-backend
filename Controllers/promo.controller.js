@@ -1,7 +1,32 @@
 import Promo from '../Models/Promo.js';
 
+
+
+
+// ✅ Get all active promo codes
+export const getActivePromoCodes = async (req, res) => {
+	try {
+		// Query the database for promo codes with status 'active'
+		const activePromoCodes = await Promo.find({ status: 'active' });
+console.log(activePromoCodes)
+		// Return the list of active promo codes
+		res.status(200).json({ promos: activePromoCodes });
+	} catch (error) {
+		console.error('Error fetching active promo codes:', error);
+		res.status(500).json({ message: 'Failed to fetch active promo codes' });
+	}
+};
+
+
+
+
+
+
+
+
 // ✅ Create a Promo Code (Only for Admin or Seller)
 export const createCode = async (req, res) => {
+	console.log("coming in createCode")
 	try {
 		// Ensure only Admin or Seller can create promo codes
 		if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'seller')) {
@@ -14,13 +39,13 @@ export const createCode = async (req, res) => {
 		if (!code || !discount) {
 			return res.status(400).json({ success: false, message: 'Code and discount are required' });
 		}
-
+console.log(req._id);
 		const newPromo = new Promo({
 			code,
 			discount,
-			createdBy: req.user.id, // Store the logged-in user who created it
+			expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default: 30 days from now
+			createdBy: req.user.id,
 		});
-
 		await newPromo.save();
 		res.status(201).json({ success: true, message: 'Promo code created', promo: newPromo });
 	} catch (error) {
@@ -33,7 +58,7 @@ export const createCode = async (req, res) => {
 export const getAllCodes = async (req, res) => {
 	try {
 		// Restrict access to Admins only
-		if (!req.user || req.user.role !== 'admin') {
+		if (!req.user || req.user.role !== 'seller') {
 			return res.status(403).json({ success: false, message: 'Access denied. Admins only.' });
 		}
 
@@ -47,10 +72,11 @@ export const getAllCodes = async (req, res) => {
 
 // ✅ Delete a Promo Code (Admin Only)
 export const deleteCode = async (req, res) => {
+	console.log("delete code")
 	try {
 		// Restrict access to Admins only
-		if (!req.user || req.user.role !== 'admin') {
-			return res.status(403).json({ success: false, message: 'Access denied. Admins only.' });
+		if (!req.user || req.user.role !== 'seller') {
+			return res.status(403).json({ success: false, message: 'Access denied. seller only.' });
 		}
 
 		const { id } = req.params;
@@ -68,7 +94,7 @@ export const deleteCode = async (req, res) => {
 // ✅ Validate a Promo Code
 export const validatePromoCode = async (req, res) => {
 	try {
-		const { code } = req.body;
+		const { code, cartTotal } = req.body; // ✅ Add cartTotal to check minimum order amount
 
 		// Check if code was provided
 		if (!code) {
@@ -83,6 +109,11 @@ export const validatePromoCode = async (req, res) => {
 			return res.status(404).json({ success: false, message: 'Invalid promo code' });
 		}
 
+		// Check if the promo code is active
+		if (promo.status !== 'active') {
+			return res.status(400).json({ success: false, message: 'This promo code is not active' });
+		}
+
 		// Check if the promo code has expired
 		const currentDate = new Date();
 		if (promo.expiryDate && currentDate > promo.expiryDate) {
@@ -94,17 +125,57 @@ export const validatePromoCode = async (req, res) => {
 			return res.status(400).json({ success: false, message: 'Promo code usage limit reached' });
 		}
 
+		
 		// ✅ Increase the usage count after validation
 		promo.timesUsed = (promo.timesUsed || 0) + 1;
 		await promo.save();
 
+		// Return success response with discount details
 		res.status(200).json({
 			success: true,
 			message: 'Promo code is valid',
 			discount: promo.discount,
+			promoCode: promo.code, // Return the promo code for reference
 		});
 	} catch (error) {
 		console.error('Validate Promo Code Error:', error.message);
+		res.status(500).json({ success: false, message: 'Internal Server Error' });
+	}
+};
+
+// ✅ Toggle Promo Code Status (Admin Only)
+export const togglePromoStatus = async (req, res) => {
+	try {
+		console.log("toogle")
+		// Restrict access to Admins only
+		if (!req.user || req.user.role !== 'seller') {
+			return res.status(403).json({ success: false, message: 'Access denied. seller only.' });
+		}
+
+		const { id } = req.params;
+
+		// Find the promo code
+		const promo = await Promo.findById(id);
+		if (!promo) {
+			return res.status(404).json({ success: false, message: 'Promo code not found' });
+		}
+
+		// Toggle status
+		const newStatus = promo.status === "active" ? "inactive" : "active";
+		const isActive = newStatus === "active";
+
+		// Update the promo
+		promo.status = newStatus;
+		promo.isActive = isActive;
+		await promo.save();
+
+		res.status(200).json({
+			success: true,
+			message: `Promo code is now ${newStatus}`,
+			promo,
+		});
+	} catch (error) {
+		console.error('Toggle Promo Status Error:', error.message);
 		res.status(500).json({ success: false, message: 'Internal Server Error' });
 	}
 };
