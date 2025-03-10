@@ -59,7 +59,7 @@ const ProductSchema = new mongoose.Schema({
   }, // Indicates if customization is allowed
   productType: {
     type: [String], // Array to store selected product types
-    enum: ['hoodie', 'shirt', 'trouser'], // Restrict to specific types
+    enum: ['hoodie', 'shirt', 'trouser', "polo", "pant", "sweatShirt", ""], // Restrict to specific types
   },
 
 }, { timestamps: true });
