@@ -5,7 +5,8 @@ import {
 	createCode,
 	validatePromoCode,
 	togglePromoStatus,
-	getActivePromoCodes, // ✅ Import the new function
+	getActivePromoCodes,
+	sendEmailToCustomers
 } from '../Controllers/promo.controller.js';
 
 import authenticate from '../Middleware/authenticate.js';
@@ -25,5 +26,7 @@ router.post('/create', authenticate, authRoles('admin', 'seller'), createCode);
 router.delete('/delete/:id', authenticate, authRoles('admin', 'seller'), deleteCode);
 // ✅ Toggle promo status (Only for Admins)
 router.patch('/toggle/:id', authenticate, authRoles('admin', 'seller'), togglePromoStatus);
+// ✅ Send email to all customers (Only for Admins/Sellers)
+router.post('/send-email', authenticate, authRoles('admin', 'seller'), sendEmailToCustomers);
 
 export default router;

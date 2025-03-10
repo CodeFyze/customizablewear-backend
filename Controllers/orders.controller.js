@@ -207,10 +207,10 @@ export const createOrder = async (req, res) => {
 
 // Configure nodemailer transporter
  const transporter = nodemailer.createTransport({
-        service: process.env.SMPT_SERVICE,
+        service: process.env.SMTP_SERVICE,
         auth: {
-            user: process.env.SMPT_MAIL,
-            pass: process.env.SMPT_PASSWORD,
+            user: process.env.SMTP_MAIL,
+            pass: process.env.SMTP_PASSWORD,
         },
         tls: {
             rejectUnauthorized: false,
@@ -251,8 +251,15 @@ const sendOrderConfirmationEmail = async (customerEmail, sellerEmail, customerNa
 export const updateOrder = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const updates = req.body;
+    const { status } = req.body; 
 
+	
+		const updates = {
+			paymentStatus: status, 
+		};
+    
+
+    console.log(id,status)
 		// Validate order ID
 		if (!mongoose.Types.ObjectId.isValid(id)) {
 			return res.status(400).json({ error: 'Invalid order ID' });
@@ -266,15 +273,17 @@ export const updateOrder = async (req, res) => {
 		// Find and update the order
 		const updatedOrder = await Order.findByIdAndUpdate(id, updates, { new: true }).populate('userId');
 
+    console.log(updateOrder)
 		// If order not found
 		if (!updatedOrder) {
 			return res.status(404).json({ error: 'Order not found' });
 		}
 
 		// Get customer and seller emails
-		const customerEmail = updatedOrder.userId.email;
-		const sellerEmail = process.env.SMPT_MAIL; // Assuming the seller email is stored in env
-
+    const customerEmail = updatedOrder.userId.email;
+    const sellerEmail = process.env.SMPT_MAIL
+    console.log(customerEmail,sellerEmail)
+    
 		// If status is updated, send an email
 		if (updates.status) {
 			await sendOrderStatusUpdateEmail(customerEmail, sellerEmail, updatedOrder._id, updates.status);

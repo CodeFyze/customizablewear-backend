@@ -57,6 +57,7 @@ router.put(
 		body('products.*.quantity', 'Quantity must be a positive integer').optional().isInt({ gt: 0 }),
 		body('products.*.customizations', 'Customizations must be an object').optional().isObject(),
 	],
+
 	updateOrder,
 );
 

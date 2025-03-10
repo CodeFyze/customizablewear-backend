@@ -4,7 +4,7 @@
 //     const transporter = nodeMailer.createTransport({
 //         host: process.env.SMPT_HOST,
 //         port: process.env.SMPT_PORT,
-//         service: process.env.SMPT_SERVICE,
+//         service: process.env.,
 //         auth:{
 //             user : process.env.SMPT_MAIL,
 //             pass : process.env.SMPT_PASSWORD,
@@ -25,21 +25,24 @@
 // export default sendEmail;
 
 
-import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
 const sendEmail = async (options) => {
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    service: process.env.SMTP_SERVICE,
-    auth: {
-      user: process.env.SMTP_MAIL,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  });
+		host: process.env.SMTP_HOST,
+		port: process.env.SMTP_PORT,
+		service: process.env.SMTP_SERVICE,
+		auth: {
+			user: process.env.SMTP_MAIL,
+			pass: process.env.SMTP_PASSWORD,
+		},
+		tls: {
+			rejectUnauthorized: false,
+		},
+	});
 
   const mailOptions = {
     from: process.env.SMTP_MAIL,

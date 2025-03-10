@@ -1,4 +1,6 @@
 import Promo from '../Models/Promo.js';
+import User from '../Models/User.js';
+import sendEmail from '../Utils/sendEmail.js';
 
 
 
@@ -178,4 +180,29 @@ export const togglePromoStatus = async (req, res) => {
 		console.error('Toggle Promo Status Error:', error.message);
 		res.status(500).json({ success: false, message: 'Internal Server Error' });
 	}
+};
+
+
+// Controller to send email to all customers
+export const sendEmailToCustomers = async (req, res) => {
+  const { emailBody } = req.body;
+
+  try {
+    // Fetch all customer emails from the database
+    const customers = await User.find({ isCustomer: true }, 'email');
+
+    // Loop through each customer and send the email
+    for (const customer of customers) {
+      await sendEmail({
+        email: customer.email,
+        subject: 'New Offer!',
+        message: emailBody,
+      });
+    }
+
+    res.json({ success: true, message: 'Emails sent successfully' });
+  } catch (error) {
+    console.error('Error sending emails:', error);
+    res.status(500).json({ error: 'Failed to send emails' });
+  }
 };

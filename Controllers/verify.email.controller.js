@@ -36,9 +36,9 @@ export const verifyEmail = async (req, res) => {
 
 		// Send email to the admin
 		const transporter = nodemailer.createTransport({
-			service: process.env.SMPT_SERVICE,
+			service: process.env.SMTP_SERVICE,
 			auth: {
-				user: process.env.SMPT_MAIL,
+				user: process.env.SMTP_MAIL,
 				pass: process.env.SMPT_PASSWORD,
 			},
 			tls: {

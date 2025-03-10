@@ -186,6 +186,7 @@ export const removeFromCart = async (req, res) => {
 export const getCart = async (req, res) => {
   try {
     const userId = req.user?.id;
+
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
@@ -216,7 +217,6 @@ export const getCart = async (req, res) => {
       font: item.font || "",          // Add font to the response
       notes: item.notes || ""         // Add notes to the response
     }));
-
     res.status(200).json({ success: true, cart: formattedCart });
   } catch (error) {
     console.error("Error fetching cart:", error);
