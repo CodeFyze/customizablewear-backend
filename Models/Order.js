@@ -59,6 +59,8 @@
 				default: 'Cash on Delivery',
 			},
 			paymentStatus: { type: String, default: 'Pending' },
+			// Add a single message field (default is an empty string)
+			message: { type: String, default: '' },
 		},
 		{ timestamps: true },
 	);

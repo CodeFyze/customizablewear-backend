@@ -7,6 +7,8 @@ import {
   getOrdersByUserId,
   updateOrder, 
   getCustomers,
+  updateOrderMessage,
+  sendOrderEmail
 } from "../Controllers/orders.controller.js";
 
 const router = express.Router();
@@ -61,6 +63,9 @@ router.put(
 	updateOrder,
 );
 
+// Update the message for an order (Admin only)
+router.put("/:orderId/message", updateOrderMessage);
+router.post('/:orderId/send-email', sendOrderEmail);
 
 
 router.get("/customers", getCustomers);

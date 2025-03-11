@@ -144,10 +144,9 @@ export const createOrder = async (req, res) => {
 				.status(400)
 				.json({ success: false, message: 'Missing required fields (Shipping Address or Products)' });
 		}
-
 		const productIds = products.map((item) => item.productId);
 		const existingProducts = await Product.find({ _id: { $in: productIds } });
-
+    
 		if (existingProducts.length !== productIds.length) {
 			console.error('❌ Some products do not exist:', { productIds, existingProducts });
 			return res.status(400).json({ success: false, message: 'Some products no longer exist' });
@@ -391,3 +390,87 @@ export const getCustomers = async (req, res) => {
   }
 };
 
+// private messages to specify the order 
+export const updateOrderMessage = async (req, res) => {
+	try {
+		const { orderId } = req.params;
+		const { message } = req.body; // The new message from the admin
+console.log(message)
+		// Check if the user is an admin
+		if (req.user.role !== 'seller') {
+			return res.status(403).json({ success: false, message: 'Only admins can update the order message' });
+		}
+
+		// Validate the order ID
+		if (!mongoose.Types.ObjectId.isValid(orderId)) {
+			return res.status(400).json({ success: false, message: 'Invalid order ID' });
+		}
+
+		// Find the order and update the message
+		const updatedOrder = await Order.findByIdAndUpdate(
+			orderId,
+			{ message }, // Update the message field
+			{ new: true }, // Return the updated order
+		);
+
+		if (!updatedOrder) {
+			return res.status(404).json({ success: false, message: 'Order not found' });
+		}
+
+		res.status(200).json({ success: true, message: 'Message updated successfully', updatedOrder });
+	} catch (error) {
+		console.error('Error updating order message:', error);
+		res.status(500).json({ success: false, message: 'Internal server error' });
+	}
+};
+
+// send order email
+export const sendOrderEmail = async (req, res) => {
+	try {
+		const { orderId } = req.params;
+		const { message } = req.body;
+
+		// Validate the order ID
+		if (!mongoose.Types.ObjectId.isValid(orderId)) {
+			return res.status(400).json({ success: false, message: 'Invalid order ID' });
+		}
+
+		// Find the order
+		const order = await Order.findById(orderId);
+
+		if (!order) {
+			return res.status(404).json({ success: false, message: 'Order not found' });
+		}
+
+		// Get the user ID from the order
+		const userId = order.userId.toString();
+
+		// Find the user by ID to get the email
+		const user = await User.findById(userId);
+
+		if (!user) {
+			return res.status(404).json({ success: false, message: 'User not found' });
+		}
+
+		// Get the customer's email
+		const customerEmail = user.email;
+
+		console.log('Recipient Email:', customerEmail); // Debugging line
+
+		if (!customerEmail) {
+			return res.status(400).json({ success: false, message: 'Customer email not found' });
+		}
+
+		// Send the email to the customer
+		await sendEmail({
+			email: customerEmail,
+			subject: 'Message from Seller',
+			message: message,
+		});
+
+		res.status(200).json({ success: true, message: 'Email sent successfully' });
+	} catch (error) {
+		console.error('Error sending email:', error);
+		res.status(500).json({ success: false, message: 'Failed to send email' });
+	}
+};
