@@ -13,7 +13,7 @@ const cartSchema = new mongoose.Schema({
       frontImage: { type: String, required: true },
       sideImage: { type: String },
       price: { type: Number, required: true },
-      size: { type: String, required: true },
+      size: { type: String, required: true }, //enum
       color: { type: String, required: true },
       logo: { type: String }, 
       quantity: { type: Number, default: 1, min: 1 },

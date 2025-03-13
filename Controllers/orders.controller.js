@@ -145,12 +145,14 @@ export const createOrder = async (req, res) => {
 				.json({ success: false, message: 'Missing required fields (Shipping Address or Products)' });
 		}
 		const productIds = products.map((item) => item.productId);
+		console.log("productIds", productIds)
 		const existingProducts = await Product.find({ _id: { $in: productIds } });
+		console.log("existing ids",existingProducts)
     
-		if (existingProducts.length !== productIds.length) {
-			console.error('❌ Some products do not exist:', { productIds, existingProducts });
-			return res.status(400).json({ success: false, message: 'Some products no longer exist' });
-		}
+		// if (existingProducts.length !== productIds.length) {
+		// 	console.error('❌ Some products do not exist:', { productIds, existingProducts });
+		// 	return res.status(400).json({ success: false, message: 'Some products no longer exist' });
+		// }
 
 		const orderProducts = products.map((item) => ({
 			productId: item.productId,
