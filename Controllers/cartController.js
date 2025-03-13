@@ -11,12 +11,13 @@ const upload = multer({ storage }).single('logo');
 
 
 export const addToCart = async (req, res) => {
+
   upload(req, res, async (err) => {
     if (err) {
       console.error("Error handling file upload:", err);
       return res.status(400).json({ success: false, message: "File upload failed" });
     }
-
+    
     try {
       const { productId, quantity, size, color, method, position, usePreviousLogo, textLine, font, notes } = req.body;
       const userId = req.user?.id;
