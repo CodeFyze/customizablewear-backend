@@ -296,7 +296,6 @@ export const updateOrder = async (req, res) => {
 		// Get customer and seller emails
     const customerEmail = updatedOrder.userId.email;
     const sellerEmail = process.env.SMTP_MAIL
-    console.log(customerEmail,sellerEmail)
     
 		// If status is updated, send an email
 		if (updates.status) {
@@ -435,6 +434,35 @@ console.log(message)
 		res.status(200).json({ success: true, message: 'Message updated successfully', updatedOrder });
 	} catch (error) {
 		console.error('Error updating order message:', error);
+		res.status(500).json({ success: false, message: 'Internal server error' });
+	}
+};
+
+//get private message
+export const getOrderMessage = async (req, res) => {
+	try {
+		const { orderId } = req.params;
+		// Check if the user is an admin
+		if (req.user.role !== 'seller') {
+			return res.status(403).json({ success: false, message: 'Only admins can update the order message' });
+		}
+
+		// Validate the order ID
+		if (!mongoose.Types.ObjectId.isValid(orderId)) {
+			return res.status(400).json({ success: false, message: 'Invalid order ID' });
+		}
+
+		// Find the order and update the message
+		const {message} = await Order.findById(orderId) // Return the updated order
+	
+
+		if (!message) {
+			return res.status(200).json({ success: true, message: '' });
+		}
+
+		res.status(200).json({ success: true, message: message });
+	} catch (error) {
+		console.error('Error getting order message:', error);
 		res.status(500).json({ success: false, message: 'Internal server error' });
 	}
 };
