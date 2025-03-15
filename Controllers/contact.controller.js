@@ -61,7 +61,7 @@ const sendCompanyEmail = async (name, email, message) => {
     });
 
     const mailOptions = {
-        from: process.env.SMPT_MAIL,
+        from: process.env.SMTP_MAIL,
         to: process.env.COMPANY_EMAIL,
         subject: 'New Contact Form Submission',
         text: `A new contact form submission has been received:\n\nName: ${name}\nEmail: ${email}\nMessage: ${message}`,

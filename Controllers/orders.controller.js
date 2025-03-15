@@ -131,7 +131,7 @@ export const createOrder = async (req, res) => {
 		console.log('🚀 Incoming Order Request:', JSON.stringify(req.body, null, 2));
 
 		const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
-    const userId = req.user?.id;
+		const userId = req.user?.id;
 
 		if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
 			console.error('❌ Invalid or missing User ID');
@@ -145,10 +145,10 @@ export const createOrder = async (req, res) => {
 				.json({ success: false, message: 'Missing required fields (Shipping Address or Products)' });
 		}
 		const productIds = products.map((item) => item.productId);
-		console.log("productIds", productIds)
+		console.log('productIds', productIds);
 		const existingProducts = await Product.find({ _id: { $in: productIds } });
-		console.log("existing ids",existingProducts)
-    
+		console.log('existing ids', existingProducts);
+
 		// if (existingProducts.length !== productIds.length) {
 		// 	console.error('❌ Some products do not exist:', { productIds, existingProducts });
 		// 	return res.status(400).json({ success: false, message: 'Some products no longer exist' });
@@ -195,8 +195,20 @@ export const createOrder = async (req, res) => {
 
 		// ✅ Send order confirmation email to customer
 		if (user?.email) {
-			await sendOrderConfirmationEmail(user.email, process.env.SMPT_MAIL, user?.firstName, order._id);
+			await sendOrderConfirmationEmail(user.email, process.env.SMTP_MAIL, user?.firstName, order._id);
 			console.log(`📧 Order confirmation email sent to ${user.email}`);
+		}
+		/// ✅ Delete the user's cart after successful order placement
+		try {
+			const cart = await Cart.findOne({ user: userId});
+			if (cart) {
+				await Cart.deleteOne({ user: userId });
+				console.log(`🛒 Cart deleted for user ${userId}`);
+			} else {
+				console.log(`🛒 No cart found for user ${userId}`);
+			}
+		} catch (error) {
+			console.error('❌ Error deleting cart:', error);
 		}
 
 		res.status(201).json({ success: true, message: 'Order created successfully', order });
@@ -228,6 +240,7 @@ const sendOrderConfirmationEmail = async (customerEmail, sellerEmail, customerNa
 			text: `Thank you for your order! Your order ID is: ${orderId}`,
 		};
 
+		console.log(customerEmail,sellerEmail)
 		// Email content for the seller
 		const sellerMailOptions = {
 			from: customerEmail,
@@ -282,7 +295,7 @@ export const updateOrder = async (req, res) => {
 
 		// Get customer and seller emails
     const customerEmail = updatedOrder.userId.email;
-    const sellerEmail = process.env.SMPT_MAIL
+    const sellerEmail = process.env.SMTP_MAIL
     console.log(customerEmail,sellerEmail)
     
 		// If status is updated, send an email
