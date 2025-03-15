@@ -209,64 +209,6 @@ export const decreaseQuantity = async (req, res) => {
   }
 };
 
-export const removeFromCart = async (req, res) => {
-	try {
-		const { productId } = req.params;
-		const userId = req.user.id;
-
-		console.log('User ID:', userId);
-		console.log('Received productId:', productId);
-
-		// Ensure the productId is a valid ObjectId using 'new'
-		const productObjectId = new mongoose.Types.ObjectId(productId);
-
-		// Fetch the user's cart
-		let cart = await Cart.findOne({ user: userId });
-
-		if (!cart) {
-			return res.status(404).json({ message: 'Cart not found' });
-		}
-
-		console.log('Current cart products:', cart.products);
-
-		// Check if the product exists in the cart
-		const productExists = cart.products.some(
-			(item) => item.product && item.product.toString() === productObjectId.toString(),
-		);
-
-		if (!productExists) {
-			return res.status(404).json({ message: 'Product not found in the cart' });
-		}
-
-		// Filter out the product with the matching productId
-		cart.products = cart.products.filter(
-			(item) => item.product && item.product.toString() !== productObjectId.toString(),
-		);
-
-		console.log('Filtered cart products:', cart.products);
-
-		// If the cart is empty after removing the product, delete the entire cart
-		if (cart.products.length === 0) {
-			await Cart.deleteOne({ user: userId });
-			console.log('Cart is empty. Deleted the cart.');
-			return res.status(200).json({ success: true, message: 'Cart is empty and has been deleted' });
-		}
-
-		// Save the updated cart if products are still remaining
-		const updatedCart = await cart.save();
-		console.log('Updated Cart After Removal:', updatedCart);
-
-		if (updatedCart) {
-			res.status(200).json({ success: true, cart: updatedCart });
-		} else {
-			console.error('❌ Failed to save updated cart');
-			res.status(500).json({ success: false, message: 'Failed to update cart' });
-		}
-	} catch (error) {
-		console.error('❌ Error removing product:', error);
-		res.status(500).json({ message: error.message });
-	}
-};
 
 // export const removeFromCart = async (req, res) => {
 //   try {
@@ -326,3 +268,57 @@ export const removeFromCart = async (req, res) => {
 
 
 
+export const removeFromCart = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const userId = req.user.id;
+
+    console.log("User ID:", userId);
+    console.log("Received productId:", productId);
+
+    // Ensure the productId is a valid ObjectId using 'new'
+    const productObjectId = new mongoose.Types.ObjectId(productId);
+
+    // Fetch the user's cart
+    let cart = await Cart.findOne({ user: userId });
+
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+
+    console.log("Current cart products:", cart.products);
+
+    // Check if the product exists in the cart
+    const productExists = cart.products.some(item => item.product && item.product.toString() === productObjectId.toString());
+
+    if (!productExists) {
+      return res.status(404).json({ message: "Product not found in the cart" });
+    }
+
+    // Filter out the product with the matching productId
+    cart.products = cart.products.filter((item) => item.product && item.product.toString() !== productObjectId.toString());
+
+    console.log("Filtered cart products:", cart.products);
+
+    // If the cart is empty after removing the product, delete the entire cart
+    if (cart.products.length === 0) {
+      await Cart.deleteOne({ user: userId });
+      console.log("Cart is empty. Deleted the cart.");
+      return res.status(200).json({ success: true, message: "Cart is empty and has been deleted" });
+    }
+
+    // Save the updated cart if products are still remaining
+    const updatedCart = await cart.save();
+    console.log("Updated Cart After Removal:", updatedCart);
+
+    if (updatedCart) {
+      res.status(200).json({ success: true, cart: updatedCart });
+    } else {
+      console.error("❌ Failed to save updated cart");
+      res.status(500).json({ success: false, message: "Failed to update cart" });
+    }
+  } catch (error) {
+    console.error("❌ Error removing product:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
