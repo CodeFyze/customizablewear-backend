@@ -216,13 +216,16 @@ export const createOrder = async (req, res) => {
 	}
 };
 
+
+//update order status
 export const updateOrder = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { status } = req.body;
+		const { status, trackingId } = req.body; // Add trackingId to the request body
 
 		const updates = {
 			paymentStatus: status,
+			...(trackingId && { trackingId }), // Add trackingId to updates if provided
 		};
 
 		// Validate order ID
@@ -242,15 +245,31 @@ export const updateOrder = async (req, res) => {
 		if (!updatedOrder) {
 			return res.status(404).json({ error: 'Order not found' });
 		}
-		
 
 		const customerEmail = updatedOrder.userId.email;
+
 		// If status is updated, send an email
 		if (customerEmail) {
+			const emailSubject = `Order ${updatedOrder._id} Status Changed`;
+			const emailText = `The order with ID ${updatedOrder._id} has been updated to: ${status}.`; // Plain text version
+			const emailHtml = `
+				<p>Dear ${updatedOrder.userId?.firstName || 'Customer'},</p>
+				<p>Your order with ID <strong>#${updatedOrder._id}</strong> has been updated to: <strong>${status}</strong>.</p>
+				${
+					updatedOrder.trackingId
+						? `<p>You can track your order using this tracking ID: <strong>${updatedOrder.trackingId}</strong>.</p>`
+						: ''
+				}
+				<p>Thank you for shopping with us!</p>
+			`;
+
+			console.log('Email HTML Content:', emailHtml); // Debugging: Log the HTML content
+
 			await sendEmail({
 				email: customerEmail,
-				subject: `Order ${updatedOrder._id} Status Changed`,
-				message: `The order with ID ${updatedOrder._id} has been updated to: ${status}.`,
+				subject: emailSubject,
+				message: emailText, // Plain text version
+				html: emailHtml, // HTML version
 			});
 		}
 
@@ -261,7 +280,6 @@ export const updateOrder = async (req, res) => {
 		res.status(500).json({ error: 'Failed to update order' });
 	}
 };
-
 
 
 // Delete an order
@@ -539,6 +557,12 @@ export const downloadInvoice = async (req, res) => {
 		doc.text(`Email: ${order.userId.email}`);
 		doc.moveDown();
 
+		// Add tracking ID (if available)
+		if (order.trackingId) {
+			doc.text(`Tracking ID: ${order.trackingId}`);
+			doc.moveDown();
+		}
+
 		// Add product details
 		doc.text('Products:');
 		order.products.forEach((item, index) => {
@@ -557,5 +581,71 @@ export const downloadInvoice = async (req, res) => {
 	} catch (error) {
 		console.error('Error generating invoice:', error);
 		res.status(500).json({ success: false, message: 'Internal Server Error' });
+	}
+};
+
+// Get Tracking ID for an order
+export const getTrackingId = async (req, res) => {
+	try {
+		const { orderId } = req.params;
+
+		// Find the order by ID
+		const order = await Order.findById(orderId);
+
+		if (!order) {
+			return res.status(404).json({ message: 'Order not found' });
+		}
+
+		// Return the tracking ID
+		res.status(200).json({ trackingId: order.trackingId || '' });
+	} catch (error) {
+		console.error('Error fetching tracking ID:', error);
+		res.status(500).json({ message: 'Failed to fetch tracking ID' });
+	}
+};
+
+// Update Tracking ID for an order
+export const updateTrackingId = async (req, res) => {
+	try {
+		const { orderId } = req.params;
+		const { trackingId } = req.body;
+
+		// Find the order by ID
+		const order = await Order.findById(orderId);
+
+		if (!order) {
+			return res.status(404).json({ message: 'Order not found' });
+		}
+
+		// Update the tracking ID
+		order.trackingId = trackingId;
+		await order.save();
+
+		// Return success response
+		res.status(200).json({ message: 'Tracking ID updated successfully' });
+	} catch (error) {
+		console.error('Error updating tracking ID:', error);
+		res.status(500).json({ message: 'Failed to update tracking ID' });
+	}
+};
+export const removeTrackingId = async (req, res) => {
+	try {
+		const { orderId } = req.params;
+
+		// Find the order by ID
+		const order = await Order.findById(orderId);
+
+		if (!order) {
+			return res.status(404).json({ message: 'Order not found' });
+		}
+
+		// Remove the tracking ID
+		order.trackingId = ''; // Set tracking ID to an empty string
+		await order.save();
+
+		res.status(200).json({ message: 'Tracking ID removed successfully' });
+	} catch (error) {
+		console.error('Error removing tracking ID:', error);
+		res.status(500).json({ message: 'Failed to remove tracking ID' });
 	}
 };

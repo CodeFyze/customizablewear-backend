@@ -63,7 +63,7 @@
 					enum: ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'],
 					default: 'Pending',
 				},
-				// Add a single message field (default is an empty string)
+				 trackingId: { type: String, default: '' },
 				message: { type: String, default: '' },
 				lastEmailSent: { type: String, default: '' },
 			},

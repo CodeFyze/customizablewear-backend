@@ -13,6 +13,9 @@ import {
 	downloadInvoice,
 	deleteEmail,
 	getEmailMessage,
+	getTrackingId,
+	updateTrackingId,
+	removeTrackingId,
 } from '../Controllers/orders.controller.js';
 
 const router = express.Router();
@@ -79,5 +82,28 @@ router.get('/:orderId/invoice', downloadInvoice);
 
 
 router.get("/customers", getCustomers);
+// ==================================================
+// New Routes for Tracking ID
+// ==================================================
+
+// Get Tracking ID for an order
+router.get(
+	'/:orderId/tracking',
+	[param('orderId', 'Invalid order ID').isMongoId()],
+	getTrackingId
+);
+
+// Update Tracking ID for an order
+router.put(
+	'/:orderId/tracking',
+	[
+		param('orderId', 'Invalid order ID').isMongoId(),
+		body('trackingId', 'Tracking ID is required').isString().notEmpty(),
+	],
+	updateTrackingId
+);
+// Route to remove tracking ID
+router.delete('/:orderId/tracking', removeTrackingId);
+
 
 export default router;

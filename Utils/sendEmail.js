@@ -49,8 +49,10 @@ const sendEmail = async (options) => {
 		to: options.email,
 		subject: options.subject,
 		text: options.message,
+		html: options.html,
 		attachments: options.attachments || [],
 	};
+
 
 	console.log('Mail Options (sendEmail utility):', mailOptions);
 	await transporter.sendMail(mailOptions);
