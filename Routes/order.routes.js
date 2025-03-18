@@ -1,16 +1,19 @@
 import express from "express";
 import { body, param } from "express-validator";
 import {
-  getAllOrders,
-  getOrderById,
-  createOrder,
-  getOrdersByUserId,
-  updateOrder, 
-  getCustomers,
-  updateOrderMessage,
-  sendOrderEmail,
-  getOrderMessage
-} from "../Controllers/orders.controller.js";
+	getAllOrders,
+	getOrderById,
+	createOrder,
+	getOrdersByUserId,
+	updateOrder,
+	getCustomers,
+	updateOrderMessage,
+	sendOrderEmail,
+	getOrderMessage,
+	downloadInvoice,
+	deleteEmail,
+	getEmailMessage,
+} from '../Controllers/orders.controller.js';
 
 const router = express.Router();
 
@@ -67,7 +70,12 @@ router.put(
 // Update the message for an order (Admin only)
 router.put("/:orderId/message", updateOrderMessage);
 router.get("/:orderId/message", getOrderMessage);
+
+router.put('/:orderId/deleteEmail', deleteEmail);
+router.get('/:orderId/getEmailMessage', getEmailMessage);
 router.post('/:orderId/send-email', sendOrderEmail);
+// Route for downloading the invoice
+router.get('/:orderId/invoice', downloadInvoice);
 
 
 router.get("/customers", getCustomers);
