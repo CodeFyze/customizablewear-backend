@@ -1,15 +1,22 @@
 import express from "express";
 import { body, param } from "express-validator";
 import {
-  getAllOrders,
-  getOrderById,
-  createOrder,
-  getOrdersByUserId,
-  updateOrder, 
-  getCustomers,
-  updateOrderMessage,
-  sendOrderEmail
-} from "../Controllers/orders.controller.js";
+	getAllOrders,
+	getOrderById,
+	createOrder,
+	getOrdersByUserId,
+	updateOrder,
+	getCustomers,
+	updateOrderMessage,
+	sendOrderEmail,
+	getOrderMessage,
+	downloadInvoice,
+	deleteEmail,
+	getEmailMessage,
+	getTrackingId,
+	updateTrackingId,
+	removeTrackingId,
+} from '../Controllers/orders.controller.js';
 
 const router = express.Router();
 
@@ -65,9 +72,38 @@ router.put(
 
 // Update the message for an order (Admin only)
 router.put("/:orderId/message", updateOrderMessage);
+router.get("/:orderId/message", getOrderMessage);
+
+router.put('/:orderId/deleteEmail', deleteEmail);
+router.get('/:orderId/getEmailMessage', getEmailMessage);
 router.post('/:orderId/send-email', sendOrderEmail);
+// Route for downloading the invoice
+router.get('/:orderId/invoice', downloadInvoice);
 
 
 router.get("/customers", getCustomers);
+// ==================================================
+// New Routes for Tracking ID
+// ==================================================
+
+// Get Tracking ID for an order
+router.get(
+	'/:orderId/tracking',
+	[param('orderId', 'Invalid order ID').isMongoId()],
+	getTrackingId
+);
+
+// Update Tracking ID for an order
+router.put(
+	'/:orderId/tracking',
+	[
+		param('orderId', 'Invalid order ID').isMongoId(),
+		body('trackingId', 'Tracking ID is required').isString().notEmpty(),
+	],
+	updateTrackingId
+);
+// Route to remove tracking ID
+router.delete('/:orderId/tracking', removeTrackingId);
+
 
 export default router;
