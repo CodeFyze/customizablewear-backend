@@ -40,8 +40,8 @@ app.use("/api/cart", CartRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/promocodes', promoCodeRoutes);
 
-app.listen(port, () => {
-  console.info(`Ecommerce app listening at http://localhost:${port}`);
-});
+// app.listen(port, () => {
+//   console.info(`Ecommerce app listening at http://localhost:${port}`);
+// });
 
 export default app;
