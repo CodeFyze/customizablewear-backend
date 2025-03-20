@@ -1,11 +1,17 @@
 import express from "express";
-import { submitForm } from "../Controllers/bundleController.js"; // Corrected import to ES module syntax
+import { addBundle , getAllBundles , updateBundle, deleteBundle , getBundleById } from "../Controllers/bundleController.js"; 
 import authenticate from "../Middleware/authenticate.js"; 
 
 
 const router = express.Router();
 
 // Define the route to handle the form submission
-router.post("/add", authenticate , submitForm);
+router.post("/add", authenticate , addBundle);
+router.get("/", authenticate, getAllBundles);
+router.put("/update", authenticate, updateBundle);
+router.delete("/delete", authenticate, deleteBundle);
+router.get("/id", authenticate, getBundleById);
+
+
 
 export default router;

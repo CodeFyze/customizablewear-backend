@@ -3,7 +3,7 @@ import { uploadToCloudinary } from "../config/uploadToCloudinary.js"; // Cloudin
 
 
 
-export const submitForm = async (req, res) => {
+export const addBundle = async (req, res) => {
     try {
       const { BundleData, categories } = req.body;
   
@@ -91,3 +91,91 @@ export const submitForm = async (req, res) => {
     }
   };
   
+
+  // Get All Bundles
+export const getAllBundles = async (req, res) => {
+  try {
+    const bundles = await Bundle.find().populate("seller", "name email");  // Populate seller details (optional)
+    if (!bundles || bundles.length === 0) {
+      return res.status(404).json({ success: false, message: "No bundles found" });
+    }
+    return res.status(200).json({ success: true, bundles });
+  } catch (error) {
+    console.error("Error fetching bundles:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// Get Single Bundle by ID
+export const getBundleById = async (req, res) => {
+  const { id } = req.params;  // Get the bundle ID from URL params
+  try {
+    const bundle = await Bundle.findById(id).populate("seller", "name email");
+    if (!bundle) {
+      return res.status(404).json({ success: false, message: "Bundle not found" });
+    }
+    return res.status(200).json({ success: true, bundle });
+  } catch (error) {
+    console.error("Error fetching bundle:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+
+// Update a Bundle
+export const updateBundle = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Check if the bundle exists
+    const bundle = await Bundle.findById(id);
+    if (!bundle) {
+      return res.status(404).json({ success: false, message: "Bundle not found" });
+    }
+
+    // Check if user is the owner of the bundle
+    if (bundle.seller.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: "You are not authorized to update this bundle" });
+    }
+
+    // Update the bundle fields with the new data
+    bundle.title = req.body.title || bundle.title;
+    bundle.price = parseFloat(req.body.price) || bundle.price;
+    bundle.description = req.body.description || bundle.description;
+    bundle.colors = req.body.colorImages || bundle.colors;
+    bundle.size = req.body.sizes || bundle.size;
+    bundle.productType = req.body.productType || bundle.productType;
+    bundle.categories = req.body.categories || bundle.categories;
+
+    // Save the updated bundle
+    await bundle.save();
+    return res.status(200).json({ success: true, message: "Bundle updated successfully", bundle });
+  } catch (error) {
+    console.error("Error updating bundle:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+
+// Delete a Bundle
+export const deleteBundle = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Find the bundle
+    const bundle = await Bundle.findById(id);
+    if (!bundle) {
+      return res.status(404).json({ success: false, message: "Bundle not found" });
+    }
+
+    // Check if user is the owner of the bundle
+    if (bundle.seller.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: "You are not authorized to delete this bundle" });
+    }
+
+    // Delete the bundle
+    await bundle.remove();
+    return res.status(200).json({ success: true, message: "Bundle deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting bundle:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
