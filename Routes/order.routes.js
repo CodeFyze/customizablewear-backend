@@ -16,6 +16,8 @@ import {
 	getTrackingId,
 	updateTrackingId,
 	removeTrackingId,
+	getOrderCount,
+	getEarnings
 } from '../Controllers/orders.controller.js';
 
 const router = express.Router();
@@ -79,7 +81,8 @@ router.get('/:orderId/getEmailMessage', getEmailMessage);
 router.post('/:orderId/send-email', sendOrderEmail);
 // Route for downloading the invoice
 router.get('/:orderId/invoice', downloadInvoice);
-
+// New route for getting earnings
+router.get('/earnings', getEarnings);
 
 router.get("/customers", getCustomers);
 // ==================================================
@@ -105,5 +108,11 @@ router.put(
 // Route to remove tracking ID
 router.delete('/:orderId/tracking', removeTrackingId);
 
+// router.get("/countOrder", getOrderCount)
+router.get('/count', getOrderCount);
+
+
+
 
 export default router;
+
