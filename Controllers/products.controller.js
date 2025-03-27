@@ -247,13 +247,35 @@ export const deleteProduct = async (req, res) => {
       });
     }
 
-    // Delete images from Cloudinary
-    await deleteFromCloudinary(existingProduct.frontImage);
-    await deleteFromCloudinary(existingProduct.sideImage);
-    await deleteFromCloudinary(existingProduct.backImage);
-    existingProduct.images.forEach(async (image) => {
-      await deleteFromCloudinary(image);
-    });
+    // Function to extract public_id from Cloudinary URL
+    const extractPublicId = (url) => {
+      const parts = url.split('/');
+      const publicIdWithExtension = parts[parts.length - 1];
+      const publicId = publicIdWithExtension.split('.')[0];
+      return publicId;
+    };
+
+    if (existingProduct.frontImage) {
+      const frontImagePublicId = extractPublicId(existingProduct.frontImage);
+      await deleteFromCloudinary(frontImagePublicId);
+    }
+
+    if (existingProduct.sideImage) {
+      const sideImagePublicId = extractPublicId(existingProduct.sideImage);
+      await deleteFromCloudinary(sideImagePublicId);
+    }
+
+    if (existingProduct.backImage) {
+      const backImagePublicId = extractPublicId(existingProduct.backImage);
+      await deleteFromCloudinary(backImagePublicId);
+    }
+
+    if (existingProduct.images && existingProduct.images.length > 0) {
+      for (const image of existingProduct.images) {
+        const imagePublicId = extractPublicId(image);
+        await deleteFromCloudinary(imagePublicId);
+      }
+    }
 
     await Product.findByIdAndDelete(req.params.id);
     res.status(200).json({ success: true, message: "Product deleted successfully" });
@@ -263,5 +285,19 @@ export const deleteProduct = async (req, res) => {
       message: "An internal server error occurred",
     });
     console.error("Error in delete product route", error);
+  }
+};
+
+
+export const getProductCount = async (req, res) => {
+  try {
+    // Count all products in the database
+    const productCount = await Product.countDocuments({});
+
+    // Return the count in the response
+    res.status(200).json({ success: true, count: productCount });
+  } catch (error) {
+    console.error("❌ Error fetching product count:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
