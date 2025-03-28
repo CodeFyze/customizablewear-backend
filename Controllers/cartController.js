@@ -170,7 +170,7 @@ export const increaseQuantity = async (req, res) => {
     console.log("Updated Cart:", cart);
 
     // Send success response
-    res.status(200).json({ success: true, cart });
+    res.status(200).json({ success: true, cart,updatedCart:cart.products[itemIndex] });
   } catch (error) {
     console.error("Error increasing quantity:", error);
     res.status(500).json({ success: false, message: "Internal Server Error" });
