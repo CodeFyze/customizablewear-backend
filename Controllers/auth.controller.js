@@ -135,12 +135,19 @@ export const login = async (req, res) => {
     );
 
     // Store token in HTTP-only cookies
+    // res.cookie("authToken", token, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === "production",
+    //   sameSite: "Strict",
+    // });
+
     res.cookie("authToken", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      secure: true, // Must be true in production
+      sameSite: "none", // Required for cross-site
+      domain: ".customizablewear.com" // Allow subdomains
     });
-
+    
     res.cookie("userRole", user.role, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

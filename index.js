@@ -20,14 +20,29 @@ const port = process.env.PORT || 5000;
 
 connectToMongo();
 
+// app.use(
+// 	cors({
+// 		// origin: ['http://localhost:5173', 'http://localhost:5174'],
+// 		origin: [  'https://store.customizablewear.com'],
+// 		credentials: true, // Allow authentication (cookies)
+// 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+// 		allowedHeaders: ['Content-Type', 'Authorization'],
+// 	}),
+// );
+
+
 app.use(
 	cors({
-		origin: ['http://localhost:5173', 'http://localhost:5174'],
-		credentials: true, // Allow authentication (cookies)
-		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-		allowedHeaders: ['Content-Type', 'Authorization'],
-	}),
-);
+	  origin: [
+		'https://store.customizablewear.com', // Production
+		'http://localhost:5173',            // Development
+	  ],
+	  credentials: true,
+	  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Add OPTIONS
+	  allowedHeaders: ['Content-Type', 'Authorization'],
+	})
+  );
+
 
 app.use(express.json());
 app.use(cookieParser());
