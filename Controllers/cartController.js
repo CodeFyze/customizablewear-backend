@@ -11,7 +11,7 @@ const upload = multer({ storage }).single('logo');
 
 
 export const addToCart = async (req, res) => {
-
+console.log("idhr ha hm add to cart me")
   upload(req, res, async (err) => {
     if (err) {
       console.error("Error handling file upload:", err);
@@ -134,6 +134,7 @@ export const increaseQuantity = async (req, res) => {
     const { productId } = req.params;
     const userId = req.user.id;
 
+    
     // Log the received productId and userId
     console.log("Received productId:", productId);
     console.log("Received userId:", userId);
@@ -147,10 +148,11 @@ export const increaseQuantity = async (req, res) => {
     // Log the cart to check its contents
     console.log("Cart found:", cart);
 
-    const itemIndex = cart.products.findIndex(item => item.product.toString() === productId);
+    const itemIndex = cart.products.findIndex(item => item._id.toString() === productId);
     if (itemIndex === -1) {
       return res.status(404).json({ success: false, message: "Product not found in cart" });
     }
+    console.log("index number ===>",itemIndex)
 
     // Log the item to be updated
     console.log("Product to increase:", cart.products[itemIndex]);
@@ -168,7 +170,7 @@ export const increaseQuantity = async (req, res) => {
     console.log("Updated Cart:", cart);
 
     // Send success response
-    res.status(200).json({ success: true, cart });
+    res.status(200).json({ success: true, cart,updatedCart:cart.products[itemIndex] });
   } catch (error) {
     console.error("Error increasing quantity:", error);
     res.status(500).json({ success: false, message: "Internal Server Error" });
@@ -188,7 +190,7 @@ export const decreaseQuantity = async (req, res) => {
     }
 
     // Find the item in the cart and update its quantity
-    const itemIndex = cart.products.findIndex(item => item.product.toString() === productId);
+    const itemIndex = cart.products.findIndex(item => item._id.toString() === productId);
 
     if (itemIndex === -1) {
       return res.status(404).json({ success: false, message: "Product not found in cart" });
@@ -269,56 +271,60 @@ export const decreaseQuantity = async (req, res) => {
 
 
 export const removeFromCart = async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const userId = req.user.id;
+	try {
+		const { productId } = req.params;
+		console.log('productId--->', productId);
+		const userId = req.user.id;
 
-    console.log("User ID:", userId);
-    console.log("Received productId:", productId);
+		console.log('User ID:', userId);
+		console.log('Received productId:', productId);
 
-    // Ensure the productId is a valid ObjectId using 'new'
-    const productObjectId = new mongoose.Types.ObjectId(productId);
+		// Ensure the productId is a valid ObjectId using 'new'
+		const productObjectId = new mongoose.Types.ObjectId(productId);
 
-    // Fetch the user's cart
-    let cart = await Cart.findOne({ user: userId });
+		// Fetch the user's cart
+		let cart = await Cart.findOne({ user: userId });
 
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
+		if (!cart) {
+			return res.status(404).json({ message: 'Cart not found' });
+		}
 
-    console.log("Current cart products:", cart.products);
+		console.log('Current cart products:', cart.products);
 
-    // Check if the product exists in the cart
-    const productExists = cart.products.some(item => item.product && item.product.toString() === productObjectId.toString());
+		// Check if the product exists in the cart
+		const productExists = cart.products.find((item) => item._id.toString() === productObjectId.toString());
+		console.log('products exist--->', productExists);
 
-    if (!productExists) {
-      return res.status(404).json({ message: "Product not found in the cart" });
-    }
+		if (!productExists) {
+			return res.status(404).json({ message: 'Product not found in the cart' });
+		}
 
-    // Filter out the product with the matching productId
-    cart.products = cart.products.filter((item) => item.product && item.product.toString() !== productObjectId.toString());
+		// Store the product before removing it
+		const deletedProduct = productExists;
 
-    console.log("Filtered cart products:", cart.products);
+		// Filter out the product with the matching productId
+		cart.products = cart.products.filter((item) => item._id.toString() !== productObjectId.toString());
+		console.log('Filtered cart products:', cart.products);
 
-    // If the cart is empty after removing the product, delete the entire cart
-    if (cart.products.length === 0) {
-      await Cart.deleteOne({ user: userId });
-      console.log("Cart is empty. Deleted the cart.");
-      return res.status(200).json({ success: true, message: "Cart is empty and has been deleted" });
-    }
+		// If the cart is empty after removing the product, delete the entire cart
+		if (cart.products.length === 0) {
+			await Cart.deleteOne({ user: userId });
+			console.log('Cart is empty. Deleted the cart.');
+			return res.status(200).json({ success: true, message: 'Cart is empty and has been deleted', deletedProduct });
+		}
 
-    // Save the updated cart if products are still remaining
-    const updatedCart = await cart.save();
-    console.log("Updated Cart After Removal:", updatedCart);
+		// Save the updated cart if products are still remaining
+		const updatedCart = await cart.save();
+		console.log('Updated Cart After Removal:', updatedCart);
 
-    if (updatedCart) {
-      res.status(200).json({ success: true, cart: updatedCart });
-    } else {
-      console.error("❌ Failed to save updated cart");
-      res.status(500).json({ success: false, message: "Failed to update cart" });
-    }
-  } catch (error) {
-    console.error("❌ Error removing product:", error);
-    res.status(500).json({ message: error.message });
-  }
+		if (updatedCart) {
+			res.status(200).json({ success: true, cart: updatedCart, deletedProduct });
+		} else {
+			console.error('❌ Failed to save delete cart');
+			res.status(500).json({ success: false, message: 'Failed to update cart' });
+		}
+	} catch (error) {
+		console.error('❌ Error removing product:', error);
+		res.status(500).json({ message: error.message });
+	}
 };
