@@ -1,34 +1,89 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-// Color schema
-const colorSchema = new mongoose.Schema({
-  color: { type: String, required: true },
-  image: { type: String, required: true },
-  sizes: [
+const BundleSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, 'Bundle title is required'],
+    trim: true,
+  },
+  price: {
+    type: Number,
+    required: [true, 'Bundle price is required'],
+    min: [0, 'Price cannot be negative'],
+  },
+  description: {
+    type: String,
+    default: 'Premium custom bundle',
+  },
+  thumbnail: {
+    type: String,
+    required: [true, 'Thumbnail image is required'],
+  },
+  categories: {
+    type: [String],
+    required: [true, 'At least one category is required'],
+    validate: {
+      validator: function(v) {
+        return v.length > 0;
+      },
+      message: 'At least one category is required',
+    },
+  },
+  seller: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User', // Assuming you have a User model
+    required: true
+  },
+  products: [
     {
-      type: String,
-      enum: ["Small", "Medium", "Large", "Extra Large"],
-      required: true,
+      image: {
+        type: String,
+        required: [true, 'Product image is required'],
+      },
+      colors: [
+        {
+          color: {
+            type: String,
+            required: [true, 'Color hex code is required'],
+          },
+          image: {
+            type: String,
+            required: [true, 'Color image is required'],
+          },
+          sizes: {
+            type: [String],
+            required: [true, 'At least one size is required'],
+            validate: {
+              validator: function(v) {
+                return v.length > 0;
+              },
+              message: 'At least one size is required',
+            },
+          },
+        },
+      ],
     },
   ],
+  size: {
+    type: [String],
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-// Bundle schema
-const bundleSchema = new mongoose.Schema({
-  image: { type: String, required: true },  // Main image of the bundle
-  colors: [colorSchema],  // Colors with images and sizes
-  categories: [
-    { type: String, enum: ["solo1", "solo2", "everyday"], required: true },
-  ],
-  description: { type: String, required: true },
-  price: { type: Number, required: true },
-  stock: { type: String, default: "In Stock" },
-  size: [{ type: String }],  // Sizes available for the bundle
-  seller: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  customizable: { type: Boolean, default: false },
-  productType: [{ type: String }],  // Types of products (hoodie, shirt, etc.)
+// Update the updatedAt field before saving
+BundleSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
-const Bundle = mongoose.model("Bundle", bundleSchema);
+const Bundle = mongoose.model('Bundle', BundleSchema);
 
 export default Bundle;

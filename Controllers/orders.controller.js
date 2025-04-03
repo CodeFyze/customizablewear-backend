@@ -728,21 +728,22 @@ export const getOrderCount = async (req, res) => {
 		res.status(500).json({ success: false, message: 'Internal Server Error' });
 	}
 };
+
 export const getEarnings = async (req, res) => {
 	try {
-		// Fetch all orders with a payment status of 'Paid'
-		const orders = await Order.find({ paymentStatus: 'Paid' });
-
-		// Calculate total earnings
-		let totalEarnings = 0;
-		orders.forEach((order) => {
-			totalEarnings += Math.round(order.finalAmount); // Use finalAmount to include discounts
-		});
-
-		// Return the total earnings
-		res.status(200).json({ success: true, totalEarnings });
+	  // Fetch all orders with a payment status of 'Paid'
+	  const orders = await Order.find({ paymentStatus: 'Paid' });
+  
+	  // Calculate total earnings
+	  let totalEarnings = 0;
+	  orders.forEach((order) => {
+		totalEarnings += order.finalAmount; // Use finalAmount to include discounts
+	  });
+  
+	  // Return the total earnings
+	  res.status(200).json({ success: true, totalEarnings });
 	} catch (error) {
-		console.error('❌ Error fetching earnings:', error);
-		res.status(500).json({ success: false, message: 'Internal Server Error' });
+	  console.error('❌ Error fetching earnings:', error);
+	  res.status(500).json({ success: false, message: 'Internal Server Error' });
 	}
-};
+  };
