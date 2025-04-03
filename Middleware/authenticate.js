@@ -53,12 +53,12 @@ dotenv.config();
 const authenticate = async (req, res, next) => {
   try {
     // ✅ Get token from Cookies OR Authorization Header
-    let token = req.cookies.accessToken;
-    console.log(token)
+    let token = req.cookies.authToken;
+    console.log("token from cookie==>",token)
 
-    if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-      token = req.headers.authorization.split(" ")[1]; 
-    }
+    // if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    //   token = req.headers.authorization.split(" ")[1]; 
+    // }
 
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized - No token provided" });

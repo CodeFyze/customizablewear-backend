@@ -2,12 +2,12 @@ import Order from '../Models/Order.js';
 import Product from '../Models/Product.js';
 import mongoose from 'mongoose';
 import User from '../Models/User.js';
-import sendEmail from '../Utils/sendEmail.js';
 import Cart from '../Models/Cart.js';
 import nodemailer from 'nodemailer';
 import { selectFields } from 'express-validator/lib/field-selection.js';
 import Promo from '../Models/Promo.js';
 import PDFDocument from 'pdfkit';
+import sendEmail from '../Utils/sendEmail.js';
 
 export const getAllOrders = async (req, res) => {
 	console.log('getting all orders');
@@ -122,38 +122,45 @@ export const getOrderById = async (req, res) => {
 
 export const createOrder = async (req, res) => {
 	try {
+		// Log incoming request
 		console.log('🚀 Incoming Order Request:', JSON.stringify(req.body, null, 2));
 
+		// Destructure request body
 		const { shippingAddress, products, totalAmount, promoCode, discount, finalAmount, paymentMode } = req.body;
+
 		const userId = req.user?.id;
 
+		// Validate user ID
 		if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
 			console.error('❌ Invalid or missing User ID');
-			return res.status(400).json({ success: false, message: 'Invalid or missing User ID' });
+			return res.status(400).json({
+				success: false,
+				message: 'Invalid or missing User ID',
+			});
 		}
 
-		if (!shippingAddress || !shippingAddress.firstName || !shippingAddress.address || products.length === 0) {
+		// Validate required fields
+		if (
+			!shippingAddress ||
+			!shippingAddress.firstName ||
+			!shippingAddress.address ||
+			!products ||
+			products.length === 0
+		) {
 			console.error('❌ Missing required fields:', { shippingAddress, products });
-			return res
-				.status(400)
-				.json({ success: false, message: 'Missing required fields (Shipping Address or Products)' });
+			return res.status(400).json({
+				success: false,
+				message: 'Missing required fields (Shipping Address or Products)',
+			});
 		}
-		const productIds = products.map((item) => item.productId);
-		console.log('productIds', productIds);
-		const existingProducts = await Product.find({ _id: { $in: productIds } });
-		console.log('existing ids', existingProducts);
 
-		// if (existingProducts.length !== productIds.length) {
-		// 	console.error('❌ Some products do not exist:', { productIds, existingProducts });
-		// 	return res.status(400).json({ success: false, message: 'Some products no longer exist' });
-		// }
-
+		// Prepare order products
 		const orderProducts = products.map((item) => ({
 			productId: item.productId,
 			title: item.title || 'Untitled Product',
-			frontImage: item.frontImage || 'Default',
+			frontImage: item.frontImage || '',
 			sideImage: item.sideImage || '',
-			price: item.logo ? item.price + 5 : item.price,
+			price: item.logo ? Number((item.price + 5).toFixed(2)) : Number(item.price.toFixed(2)),
 			size: item.size || 'Default',
 			color: item.color || 'Default',
 			logo: item.logo || '',
@@ -163,23 +170,29 @@ export const createOrder = async (req, res) => {
 			textLine: item.textLine || '',
 			font: item.font || '',
 			notes: item.notes || '',
+			sku: item.sku || `PROD-${item.productId.slice(-6)}`,
 		}));
 
+		// Create new order
 		const order = new Order({
 			userId: new mongoose.Types.ObjectId(userId),
 			shippingAddress,
 			products: orderProducts,
-			totalAmount,
+			totalAmount: Number(totalAmount),
 			promoCode: promoCode || '',
-			discount: discount || 0,
-			finalAmount,
+			discount: discount ? Math.round(Number(discount)) : 0,
+			finalAmount: Math.round(Number(finalAmount)),
 			paymentMode,
 			paymentStatus: paymentMode === 'Online' ? 'Paid' : 'Pending',
+			orderDate: new Date(),
+			status: 'Processing',
 		});
 
+		// Save order to database
 		await order.save();
 		console.log(`✅ Order ${order._id} created successfully!`);
 
+		// Update user to customer if not already
 		const user = await User.findById(userId);
 		if (user && !user.isCustomer) {
 			user.isCustomer = true;
@@ -187,35 +200,91 @@ export const createOrder = async (req, res) => {
 			console.log(`✅ User ${userId} is now marked as a customer.`);
 		}
 
-		// ✅ Send order confirmation email to customer
+		// Send order confirmation email if user has email
 		if (user?.email) {
-			const options = {
-				email: user.email,
-				subject: 'Order Confirmation',
-				message: `Thank you for your order! Your order ID is: ${order.id}`,
-			};
-			await sendEmail(options);
-		}
-		/// ✅ Delete the user's cart after successful order placement
-		try {
-			const cart = await Cart.findOne({ user: userId });
-			if (cart) {
-				await Cart.deleteOne({ user: userId });
-				console.log(`🛒 Cart deleted for user ${userId}`);
-			} else {
-				console.log(`🛒 No cart found for user ${userId}`);
+			console.log(user.email);
+			try {
+				const emailData = {
+					type: 'order_confirmation',
+					to: user.email,
+					data: {
+						customer: {
+							name: `${shippingAddress.firstName} ${shippingAddress.lastName || ''}`.trim(),
+							email: user.email,
+							address: {
+								street: shippingAddress.address || 'Not specified',
+							},
+						},
+						order: {
+							number: order._id?.toString() || 'N/A',
+							date: new Date(),
+							paymentMethod: paymentMode || 'Not specified',
+							items: orderProducts.map((item) => ({
+								name: item.title || 'Untitled Product',
+								quantity: item.quantity || 1,
+								customization: item.logo
+									? `Logo (${item.method || 'method not specified'}) at ${item.position || 'position not specified'}`
+									: item.textLine
+									? `Text: "${item.textLine || ''}" in ${item.font || 'default font'}`
+									: 'None',
+								color: item.color || 'Not specified',
+								size: item.size || 'Not specified',
+								price: item.price?.toFixed(2) || '0.00',
+								notes: item.notes || 'None',
+							})),
+							subtotal: totalAmount?.toFixed(2) || '0.00',
+							shippingCost: Math.round(finalAmount - totalAmount) || '0.00',
+							total: Math.round(finalAmount) || '0.00',
+							discount: discount ? Math.round(discount) : '0.00',
+							promoCode: promoCode || 'None',
+							productionTime: '7-10 business days',
+							estimatedDelivery: new Date(
+								(order.orderDate?.getTime() || Date.now()) + 14 * 24 * 60 * 60 * 1000,
+							).toLocaleDateString('en-US', {
+								year: 'numeric',
+								month: 'long',
+								day: 'numeric',
+							}),
+						},
+					},
+				};
+				await sendEmail(emailData);
+				console.log(`📧 Order confirmation email sent to ${user.email}`);
+			} catch (emailError) {
+				console.error('❌ Failed to send confirmation email:', emailError);
+				// Don't fail the order if email fails
 			}
-		} catch (error) {
-			console.error('❌ Error deleting cart:', error);
 		}
 
-		res.status(201).json({ success: true, message: 'Order created successfully', order });
+		// Delete user's cart after successful order
+		try {
+			await Cart.deleteOne({ user: userId });
+			console.log(`🛒 Cart deleted for user ${userId}`);
+		} catch (cartError) {
+			console.error('❌ Error deleting cart:', cartError);
+			// Continue even if cart deletion fails
+		}
+
+		// Return success response
+		res.status(201).json({
+			success: true,
+			message: 'Order created successfully',
+			order: {
+				id: order._id,
+				status: order.status,
+				total: order.finalAmount,
+				estimatedDelivery: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+			},
+		});
 	} catch (error) {
 		console.error('❌ Error creating order:', error);
-		res.status(500).json({ success: false, message: 'Internal Server Error' });
+		res.status(500).json({
+			success: false,
+			message: 'Internal Server Error',
+			error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+		});
 	}
 };
-
 
 //update order status
 export const updateOrder = async (req, res) => {
@@ -249,29 +318,29 @@ export const updateOrder = async (req, res) => {
 		const customerEmail = updatedOrder.userId.email;
 
 		// If status is updated, send an email
-		if (customerEmail) {
-			const emailSubject = `Order ${updatedOrder._id} Status Changed`;
-			const emailText = `The order with ID ${updatedOrder._id} has been updated to: ${status}.`; // Plain text version
-			const emailHtml = `
-				<p>Dear ${updatedOrder.userId?.firstName || 'Customer'},</p>
-				<p>Your order with ID <strong>#${updatedOrder._id}</strong> has been updated to: <strong>${status}</strong>.</p>
-				${
-					updatedOrder.trackingId
-						? `<p>You can track your order using this tracking ID: <strong>${updatedOrder.trackingId}</strong>.</p>`
-						: ''
-				}
-				<p>Thank you for shopping with us!</p>
-			`;
+		// if (customerEmail) {
+		// 	const emailSubject = `Order ${updatedOrder._id} Status Changed`;
+		// 	const emailText = `The order with ID ${updatedOrder._id} has been updated to: ${status}.`; // Plain text version
+		// 	const emailHtml = `
+		// 		<p>Dear ${updatedOrder.userId?.firstName || 'Customer'},</p>
+		// 		<p>Your order with ID <strong>#${updatedOrder._id}</strong> has been updated to: <strong>${status}</strong>.</p>
+		// 		${
+		// 			updatedOrder.trackingId
+		// 				? `<p>You can track your order using this tracking ID: <strong>${updatedOrder.trackingId}</strong>.</p>`
+		// 				: ''
+		// 		}
+		// 		<p>Thank you for shopping with us!</p>
+		// 	`;
 
-			console.log('Email HTML Content:', emailHtml); // Debugging: Log the HTML content
+		// 	console.log('Email HTML Content:', emailHtml); // Debugging: Log the HTML content
 
-			await sendEmail({
-				email: customerEmail,
-				subject: emailSubject,
-				message: emailText, // Plain text version
-				html: emailHtml, // HTML version
-			});
-		}
+		// 	await sendEmail({
+		// 		email: customerEmail,
+		// 		subject: emailSubject,
+		// 		message: emailText, // Plain text version
+		// 		html: emailHtml, // HTML version
+		// 	});
+		// }
 
 		// Return updated order
 		res.json({ success: true, message: 'Order updated successfully', updatedOrder });
@@ -280,7 +349,6 @@ export const updateOrder = async (req, res) => {
 		res.status(500).json({ error: 'Failed to update order' });
 	}
 };
-
 
 // Delete an order
 export const deleteOrder = async (req, res) => {
@@ -398,7 +466,7 @@ export const getOrderMessage = async (req, res) => {
 		const { message } = await Order.findById(orderId); // Return the updated order
 
 		if (!message) {
-			return res.status(200).json({ success: true, message: ""});
+			return res.status(200).json({ success: true, message: '' });
 		}
 
 		res.status(200).json({ success: true, message: message });
@@ -647,5 +715,34 @@ export const removeTrackingId = async (req, res) => {
 	} catch (error) {
 		console.error('Error removing tracking ID:', error);
 		res.status(500).json({ message: 'Failed to remove tracking ID' });
+	}
+};
+
+
+export const getOrderCount = async (req, res) => {
+	try {
+		const orderCount = await Order.countDocuments({});
+		res.status(200).json({ success: true, count: orderCount });
+	} catch (error) {
+		console.error('❌ Error fetching order count:', error);
+		res.status(500).json({ success: false, message: 'Internal Server Error' });
+	}
+};
+export const getEarnings = async (req, res) => {
+	try {
+		// Fetch all orders with a payment status of 'Paid'
+		const orders = await Order.find({ paymentStatus: 'Paid' });
+
+		// Calculate total earnings
+		let totalEarnings = 0;
+		orders.forEach((order) => {
+			totalEarnings += Math.round(order.finalAmount); // Use finalAmount to include discounts
+		});
+
+		// Return the total earnings
+		res.status(200).json({ success: true, totalEarnings });
+	} catch (error) {
+		console.error('❌ Error fetching earnings:', error);
+		res.status(500).json({ success: false, message: 'Internal Server Error' });
 	}
 };

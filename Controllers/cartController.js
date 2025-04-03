@@ -11,7 +11,6 @@ const upload = multer({ storage }).single('logo');
 
 
 export const addToCart = async (req, res) => {
-console.log("idhr ha hm add to cart me")
   upload(req, res, async (err) => {
     if (err) {
       console.error("Error handling file upload:", err);
@@ -28,7 +27,10 @@ console.log("idhr ha hm add to cart me")
 
       // Ensure valid quantity
       const finalQuantity = quantity && Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
-
+console.log("productId",productId)
+console.log('finalQuantiity', finalQuantity);
+console.log('size', size);
+console.log('color', color);
       if (!productId || !finalQuantity || !size || !color) {
         return res.status(400).json({ success: false, message: "Missing required fields" });
       }

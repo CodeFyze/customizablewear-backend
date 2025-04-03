@@ -47,6 +47,9 @@ router.post(
 );
 
 router.get("/user-id", getUserId);
+router.get("/check", authenticate, (req, res) => {
+   res.json(req.user);
+});
 
 // Verify signup using: POST "/api/auth/signup/verify". No Auth required
 // router.post(

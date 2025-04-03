@@ -16,6 +16,8 @@ import {
 	getTrackingId,
 	updateTrackingId,
 	removeTrackingId,
+	getOrderCount,
+	getEarnings,
 } from '../Controllers/orders.controller.js';
 
 const router = express.Router();
@@ -104,6 +106,15 @@ router.put(
 );
 // Route to remove tracking ID
 router.delete('/:orderId/tracking', removeTrackingId);
+
+// New route for getting earnings
+router.get('/earnings', getEarnings);
+
+// router.get("/countOrder", getOrderCount)
+router.get('/count', getOrderCount);
+
+
+
 
 
 export default router;

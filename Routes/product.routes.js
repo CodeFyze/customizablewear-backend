@@ -2,7 +2,7 @@ import express from "express";
 import { body } from "express-validator";
 import multer from 'multer';
 import upload from "../Middleware/multerMiddleware.js";
-import { getAllProducts, getProductById, getProductByName, addProduct , updateProduct , deleteProduct  } from "../Controllers/products.controller.js";
+import { getAllProducts, getProductById, getProductByName, addProduct , updateProduct , deleteProduct , getProductCount } from "../Controllers/products.controller.js";
 import authenticate from "../Middleware/authenticate.js"; 
 
 
@@ -10,7 +10,8 @@ const router = express.Router();
 
 // Get all products: GET "/api/products". No Auth required
 router.get("/", getAllProducts);
-
+// New route for getting product count
+router.get("/count", getProductCount);
 // Get product by id: GET "/api/products/:id". No Auth required
 router.get("/:id", getProductById);
 
@@ -62,6 +63,7 @@ router.delete("/delete/:id",authenticate, deleteProduct);
 //   ],
 //   addToCart
 // );
+
 
 
 export default router;

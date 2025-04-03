@@ -265,3 +265,16 @@ export const deleteProduct = async (req, res) => {
     console.error("Error in delete product route", error);
   }
 };
+
+export const getProductCount = async (req, res) => {
+	try {
+		// Count all products in the database
+		const productCount = await Product.countDocuments({});
+
+		// Return the count in the response
+		res.status(200).json({ success: true, count: productCount });
+	} catch (error) {
+		console.error('❌ Error fetching product count:', error);
+		res.status(500).json({ success: false, message: 'Internal Server Error' });
+	}
+};
