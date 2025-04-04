@@ -18,8 +18,6 @@ import {
 	removeTrackingId,
 	getOrderCount,
 	getEarnings
-	getOrderCount,
-	getEarnings,
 } from '../Controllers/orders.controller.js';
 
 const router = express.Router();
