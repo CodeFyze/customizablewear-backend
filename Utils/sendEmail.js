@@ -29,6 +29,18 @@ const sendEmail = async ({ type, to, data }) => {
 				subject = `Your Order Has Shipped - #${data.order.number}`;
 				html = generateShippingNotificationEmail(data);
 				break;
+			case 'order_status_update':
+				subject = `Order Status Update - #${data.order._id}`;
+				html = generateOrderStatusUpdateEmail(data);
+				break;
+			case 'private_message':
+				subject = `Message About Your Order #${data.order._id}`;
+				html = generatePrivateMessageEmail(data);
+				break;
+			case 'order_dispatched':
+				subject = `Order Dispatched - #${data.order._id}`;
+				html = generateDispatchEmail(data);
+				break;
 			default:
 				throw new Error('Unsupported email type');
 		}
@@ -185,6 +197,83 @@ function generateShippingNotificationEmail({ customer, order }) {
     `;
 }
 
+function generateOrderStatusUpdateEmail({ customer, order, status }) {
+	const customerName = customer?.name || customer?.firstName || 'Valued Customer';
+	const companyName = process.env.COMPANY_NAME;
+	const companyPhone = process.env.COMPANY_PHONE;
+	const companyWebsite = process.env.COMPANY_WEBSITE;
+
+	return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+        .order-details {
+          background-color: #f9f9f9;
+          padding: 15px;
+          border-radius: 5px;
+          margin-bottom: 20px;
+        }
+        .status-update {
+          font-weight: bold;
+          color: #2c7be5;
+        }
+        .footer {
+          margin-top: 30px;
+          font-size: 0.9em;
+          color: #777;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2>Order Status Update</h2>
+        </div>
+        
+        <p>Dear ${customerName},</p>
+        
+        <p>We wanted to inform you about an update to your order status.</p>
+        
+        <div class="order-details">
+          <h3>Order Details</h3>
+          <p><strong>Order Number:</strong> #${order._id}</p>
+          <p><strong>New Status:</strong> <span class="status-update">${status}</span></p>
+        </div>
+        
+        <p>If you have any questions about your order status or need further assistance, 
+        please don't hesitate to contact our customer service team.</p>
+        
+        <div class="footer">
+          <p>Best regards,</p>
+          <p><strong>${companyName}</strong></p>
+          <p><a href="${companyWebsite}">${companyWebsite}</a></p>
+          <p>${companyPhone}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+
+
+
 // Text version for email clients that don't support HTML
 function generateTextVersion(data, type) {
 	console.log('data.order.discount===>', data.order.discount);
@@ -202,15 +291,15 @@ function generateTextVersion(data, type) {
             
             Order Items:
             ${data.order.items
-							.map(
-								(item) => `
+				.map(
+					(item) => `
               - ${item.name} (Qty: ${item.quantity})
                 Size: ${item.size}, Color: ${item.color}
                 ${item.customization !== 'None' ? `Custom: ${item.customization}` : ''}
                 Price: $${item.price}
             `,
-							)
-							.join('\n')}
+				)
+				.join('\n')}
             
             Subtotal: $${data.order.subtotal}
 
@@ -222,7 +311,160 @@ function generateTextVersion(data, type) {
             ${process.env.COMPANY_NAME || 'Your Company'}
         `;
 	}
+	else if (type === 'order_status_update') {
+		return `
+      Order Status Update - #${data.order._id}
+      
+      Dear ${data.customer?.name || data.customer?.firstName || 'Valued Customer'},
+      
+      We wanted to inform you about an update to your order status.
+      
+      Order Details:
+      - Order Number: #${data.order._id}
+      - New Status: ${data.status}
+     
+      
+      If you have any questions about your order status or need further assistance, 
+      please don't hesitate to contact our customer service team.
+      
+      Best regards,
+      ${process.env.COMPANY_NAME || 'Your Company'}
+      ${process.env.COMPANY_WEBSITE || ''}
+      ${process.env.COMPANY_PHONE || ''}
+    `;
+	}
 	// Similar for shipping notification
+}
+// In your email utility functions
+function generatePrivateMessageEmail({ customer, order, sellerMessage }) {
+    const companyName = process.env.COMPANY_NAME || 'Our Store';
+    
+	console.log('customer===>', customer);
+	console.log('order===>', order);
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { color: #2c7be5; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+                .message-box { background: #f9f9f9; padding: 15px; border-left: 3px solid #2c7be5; margin: 20px 0; }
+                .footer { font-size: 0.9em; color: #777; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h2>Message About Your Order #${order._id}</h2>
+            </div>
+            
+            <p>Dear ${customer.name},</p>
+            
+            <div class="message-box">
+                <p><strong>Seller's Message:</strong></p>
+                <p>${sellerMessage}</p>
+            </div>
+            
+          
+            
+            <p>Please reply to this email if you have any questions.</p>
+            
+            <div class="footer">
+                <p>Best regards,</p>
+                <p><strong>${companyName} Team</strong></p>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+// Text version (for non-HTML clients)
+function generatePrivateMessageText({ customer, order, sellerMessage }) {
+    return `
+        Message About Your Order #${order._id}
+        
+        Dear ${customer.firstName},
+        
+        Seller's Message:
+        ${sellerMessage}
+        
+        Order Details:
+        - Status: ${order.paymentStatus}
+        ${order.trackingId ? `- Tracking ID: ${order.trackingId}\n` : ''}
+        
+        Please reply to this email if you have questions.
+        
+        Best regards,
+        ${process.env.COMPANY_NAME || 'Our Store'} Team
+    `;
+}
+
+
+function generateDispatchEmail({ customer, order, trackingId, shippingCarrier }) {
+	const customerName = customer?.name || customer?.firstName || 'Valued Customer';
+	const companyName = process.env.COMPANY_NAME;
+	const companyPhone = process.env.COMPANY_PHONE;
+	const companyWebsite = process.env.COMPANY_WEBSITE;
+    
+    // Calculate estimated delivery date (7 days from now as default)
+    const estimatedDelivery = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+    // Generate tracking URL based on carrier
+    const trackingUrls = {
+        'FedEx': `https://www.fedex.com/fedextrack/?trknbr=${trackingId}`,
+        'UPS': `https://www.ups.com/track?tracknum=${trackingId}`,
+        'USPS': `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingId}`,
+        'DHL': `https://www.dhl.com/us-en/home/tracking/tracking-parcel.html?submit=1&tracking-id=${trackingId}`
+    };
+
+    const trackingUrl = trackingUrls[shippingCarrier] || '#';
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .header { color: #2c7be5; font-size: 24px; margin-bottom: 20px; }
+                .details { background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0; }
+                .address { border-left: 3px solid #2c7be5; padding-left: 10px; margin: 15px 0; }
+                .tracking-link { color: #2c7be5; text-decoration: none; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="header">Order Dispatch Confirmation</div>
+            
+            <p>Dear ${customerName},</p>
+            <p>Great news! Your order <strong>#${order._id}</strong> has been dispatched and is on its way to you.</p>
+            
+            <div class="details">
+                <p><strong>Order Number:</strong> ${order._id}</p>
+                <p><strong>Dispatch Date:</strong> ${new Date().toLocaleDateString()}</p>
+                <p><strong>Courier:</strong> ${shippingCarrier}</p>
+                <p><strong>Tracking Number:</strong> ${trackingId}</p>
+                <p><strong>Tracking Link:</strong> <a href="${trackingUrl}" class="tracking-link">Click here to track</a></p>
+            </div>
+            
+            <div class="address">
+                <p><strong>Shipping Address:</strong></p>
+                <p>${order.shippingAddress.firstName} ${order.shippingAddress.lastName}</p>
+                <p>${order.shippingAddress.address}</p>
+            </div>
+            
+            <p>Your estimated delivery date is <strong>${estimatedDelivery}</strong>.</p>
+            <p>You can track your package using the link above.</p>
+            
+            <p>If you have any questions or need further assistance, feel free to contact our support team at
+            
+            <p>Thank you for choosing ${companyName}! We hope you love your customized workwear.</p>
+            
+            <p>Best regards,<br>
+            The ${companyName} Team<br>
+            <a href="${companyWebsite}">${companyWebsite}</a><br>
+            ${companyPhone}</p>
+        </body>
+        </html>
+    `;
 }
 
 export default sendEmail;
