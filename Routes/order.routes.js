@@ -8,7 +8,7 @@ import {
 	updateOrder,
 	getCustomers,
 	updateOrderMessage,
-	sendOrderEmail,
+	sendPrivateEmail,
 	getOrderMessage,
 	downloadInvoice,
 	deleteEmail,
@@ -17,7 +17,7 @@ import {
 	updateTrackingId,
 	removeTrackingId,
 	getOrderCount,
-	getEarnings
+	getEarnings,
 } from '../Controllers/orders.controller.js';
 
 const router = express.Router();
@@ -78,7 +78,7 @@ router.get("/:orderId/message", getOrderMessage);
 
 router.put('/:orderId/deleteEmail', deleteEmail);
 router.get('/:orderId/getEmailMessage', getEmailMessage);
-router.post('/:orderId/send-email', sendOrderEmail);
+router.post('/:orderId/send-email', sendPrivateEmail);
 // Route for downloading the invoice
 router.get('/:orderId/invoice', downloadInvoice);
 // New route for getting earnings
