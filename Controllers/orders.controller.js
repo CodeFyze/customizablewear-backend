@@ -290,11 +290,20 @@ export const createOrder = async (req, res) => {
 export const updateOrder = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { status, trackingId } = req.body; // Add trackingId to the request body
+		const { status, trackingId, shippingCarrier } = req.body; // Add shippingCarrier
+
+		// Check if the user is an admin
+		// Fetch original order first for comparison
+		const originalOrder = await Order.findById(id).populate('userId');
+		console.log('Original Order:', originalOrder); // Log the original order for debugging
+		if (!originalOrder) {
+			return res.status(404).json({ error: 'Order not found' });
+		}
 
 		const updates = {
 			paymentStatus: status,
-			...(trackingId && { trackingId }), // Add trackingId to updates if provided
+			...(trackingId && { trackingId }), // Conditionally add trackingId
+			...(shippingCarrier && { shippingCarrier }), // Conditionally add shippingCarrier
 		};
 
 		// Validate order ID
@@ -308,42 +317,68 @@ export const updateOrder = async (req, res) => {
 		}
 
 		// Find and update the order
-		const updatedOrder = await Order.findByIdAndUpdate(id, updates, { new: true }).populate('userId');
+		const updatedOrder = await Order.findByIdAndUpdate(id, updates, {
+			new: true,
+		}).populate('userId');
 
-		// If order not found
+
+		console.log('Updated Order:', updatedOrder); // Log the updated order for debugging
 		if (!updatedOrder) {
 			return res.status(404).json({ error: 'Order not found' });
 		}
 
-		const customerEmail = updatedOrder.userId.email;
+		const customerEmail = updatedOrder.userId?.email;
+		const customerName = `${updatedOrder.shippingAddress.firstName} ${
+			updatedOrder.shippingAddress.lastName || ''
+		}`.trim();
 
-		// If status is updated, send an email
-		// if (customerEmail) {
-		// 	const emailSubject = `Order ${updatedOrder._id} Status Changed`;
-		// 	const emailText = `The order with ID ${updatedOrder._id} has been updated to: ${status}.`; // Plain text version
-		// 	const emailHtml = `
-		// 		<p>Dear ${updatedOrder.userId?.firstName || 'Customer'},</p>
-		// 		<p>Your order with ID <strong>#${updatedOrder._id}</strong> has been updated to: <strong>${status}</strong>.</p>
-		// 		${
-		// 			updatedOrder.trackingId
-		// 				? `<p>You can track your order using this tracking ID: <strong>${updatedOrder.trackingId}</strong>.</p>`
-		// 				: ''
-		// 		}
-		// 		<p>Thank you for shopping with us!</p>
-		// 	`;
+		// Send appropriate email based on the update
+		if (customerEmail) {
+			// Dispatch email (if status changed to Shipped and tracking ID was added)
+			if (status === 'Shipped' && trackingId && originalOrder.trackingId) {
+				console.log('Sending dispatch email...');
+				await sendEmail({
+					type: 'order_dispatched',
+					to: customerEmail,
+					data: {
+						customer: {
+							name: customerName,
+							email: customerEmail,
+							address: {
+								street: updatedOrder.shippingAddress.address || 'Not specified',
+							},
+						},
+						order: updatedOrder,
+						trackingId,
+						shippingCarrier: shippingCarrier || 'our shipping partner',
+					},
+				});
+			}
+			// Regular status update email
+			else if (status && status !== originalOrder.paymentStatus) {
+				await sendEmail({
+					type: 'order_status_update',
+					to: customerEmail,
+					data: {
+						customer: {
+							name: customerName,
+							email: customerEmail,
+							address: {
+								street: updatedOrder.shippingAddress.address || 'Not specified',
+							},
+						},
+						order: updatedOrder,
+						status: updatedOrder.paymentStatus,
+					},
+				});
+			}
+		}
 
-		// 	console.log('Email HTML Content:', emailHtml); // Debugging: Log the HTML content
-
-		// 	await sendEmail({
-		// 		email: customerEmail,
-		// 		subject: emailSubject,
-		// 		message: emailText, // Plain text version
-		// 		html: emailHtml, // HTML version
-		// 	});
-		// }
-
-		// Return updated order
-		res.json({ success: true, message: 'Order updated successfully', updatedOrder });
+		res.json({
+			success: true,
+			message: 'Order updated successfully',
+			updatedOrder,
+		});
 	} catch (error) {
 		console.error('❌ Error updating order:', error);
 		res.status(500).json({ error: 'Failed to update order' });
@@ -504,49 +539,38 @@ export const getEmailMessage = async (req, res) => {
 };
 
 // send order email
-export const sendOrderEmail = async (req, res) => {
+export const sendPrivateEmail = async (req, res) => {
 	try {
 		const { orderId } = req.params;
 		const { message } = req.body;
 
-		// Validate the order ID
+		// Validate
 		if (!mongoose.Types.ObjectId.isValid(orderId)) {
 			return res.status(400).json({ success: false, message: 'Invalid order ID' });
 		}
 
-		// Find the order
-		const order = await Order.findById(orderId);
-
-		if (!order) {
-			return res.status(404).json({ success: false, message: 'Order not found' });
-		}
-
-		// Get the user ID from the order
-		const userId = order.userId.toString();
-
-		// Find the user by ID to get the email
-		const user = await User.findById(userId);
-
-		if (!user) {
-			return res.status(404).json({ success: false, message: 'User not found' });
-		}
-
-		// Get the customer's email
-		const customerEmail = user.email;
-
-		console.log('Recipient Email:', customerEmail); // Debugging line
-
+		const order = await Order.findById(orderId).populate('userId');
+		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+console.log('Order:', order); // Log the order for debugging
+		const customerEmail = order.userId?.email;
 		if (!customerEmail) {
 			return res.status(400).json({ success: false, message: 'Customer email not found' });
 		}
 
-		// Send the email to the customer
+		// Send email
 		await sendEmail({
-			email: customerEmail,
-			subject: 'Message from Seller',
-			message: message,
+			type: 'private_message',
+			to: customerEmail,
+			data: {
+				customer: {
+					name: `${order.shippingAddress.firstName} ${order.shippingAddress.lastName || ''}`.trim(),
+				},
+				order: order,
+				sellerMessage: message, // The custom message from seller
+			},
 		});
 
+		// Save to order history
 		order.lastEmailSent = message;
 		await order.save();
 
@@ -621,8 +645,8 @@ export const downloadInvoice = async (req, res) => {
 		doc.moveDown();
 
 		// Add customer details
-		doc.text(`Customer Name: ${order.userId.firstName} ${order.userId.lastName}`);
-		doc.text(`Email: ${order.userId.email}`);
+		doc.text(`Customer Name: ${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`);
+		doc.text(`Email: ${order.shippingAddress.email}`);
 		doc.moveDown();
 
 		// Add tracking ID (if available)
